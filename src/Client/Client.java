@@ -1,11 +1,13 @@
 package Client;
 
+import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.Random;
+import java.util.Scanner;
 
 import Core.FileContent;
 import Core.MessageNotFoundException;
@@ -19,8 +21,12 @@ public class Client {
 	String MSaddress;
 	String server_name;
 
-	public Client() {
-
+	public Client() throws FileNotFoundException {
+		Scanner scan = new Scanner(new File("MasterServer.txt"));
+		MSaddress = scan.nextLine();
+		server_name = scan.nextLine();
+		MSport_number = scan.nextInt();
+		scan.close();
 	}
 
 	/*
@@ -69,19 +75,24 @@ public class Client {
 	 * commits. That is a read request to a file that is being updated by an
 	 * uncommitted transaction must generate an error.
 	 */
-	public WriteMsg write(FileContent data) throws RemoteException, IOException {
+	public WriteMsg write(WriteMsg wm, FileContent data)
+			throws RemoteException, IOException {
 		MasterServerClientInterface MrmiServer;
 		ReplicaServerClientInterface RrmiServer;
 		Registry Mregistry, Rregistry;
 		Random generator = new Random(5);
+		WriteMsg response;
 		try {
 			// calling the Master server
-			Mregistry = LocateRegistry.getRegistry(MSaddress, (new Integer(
-					MSport_number)).intValue());
-			MrmiServer = (MasterServerClientInterface) (Mregistry
-					.lookup("rmiServer"));
-			// call the remote method
-			WriteMsg response = MrmiServer.write(data);
+			if (wm == null) {
+				Mregistry = LocateRegistry.getRegistry(MSaddress, (new Integer(
+						MSport_number)).intValue());
+				MrmiServer = (MasterServerClientInterface) (Mregistry
+						.lookup("rmiServer"));
+				// call the remote method
+				response = MrmiServer.write(data);
+			} else
+				response = wm;
 			long transactionId = response.getTransactionId();
 			long timeStamp = response.getTimeStamp();
 			System.out.println("MASTER SERVER REPLY TO WRITE : " + timeStamp);
