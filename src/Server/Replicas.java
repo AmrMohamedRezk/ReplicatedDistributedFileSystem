@@ -31,7 +31,7 @@ public class Replicas implements ReplicaServerClientInterface {
 	public Replicas(String location,int i) throws RemoteException {
 		Registry registry;
 		System.setProperty("java.rmi.server.hostname", "localhost");
-		registry = LocateRegistry.createRegistry(8080);
+		registry = LocateRegistry.createRegistry(8080+i);
 		try {
 			registry.rebind("replica"+i, this);
 		} catch (RemoteException e) {
