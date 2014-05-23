@@ -28,7 +28,8 @@ public class Replicas implements ReplicaServerClientInterface {
 	private HashMap<Long, HashMap<Long, FileContent>> pendingTransactions;
 	private HashMap<Long, String> transactionToFileNameMap;
 
-	public Replicas(String location,int i) throws RemoteException {
+	public Replicas(String location,int i,Master m) throws RemoteException {
+		master = m;
 		Registry registry;
 		System.setProperty("java.rmi.server.hostname", "localhost");
 		registry = LocateRegistry.createRegistry(8080+i);

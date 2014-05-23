@@ -66,7 +66,7 @@ public class Master implements MasterServerClientInterface {
 		int j=1;
 		while ((line = br.readLine()) != null) {
 			replicasAddress.add(line);
-			replicasObjects.put(line, new Replicas(line,j++));
+			replicasObjects.put(line, new Replicas(line,j++,this));
 			File folder = new File(line);
 			File[] listOfFiles = folder.listFiles();
 			for (int i = 0; i < listOfFiles.length; i++) {

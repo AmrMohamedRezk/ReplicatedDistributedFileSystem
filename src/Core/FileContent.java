@@ -4,7 +4,7 @@ public class FileContent {
 	private String fileName;
 	private String Content;
 	long xaction_number;
-	
+	private ReplicaLoc rl;
 
 	public void setFileName(String fileName) {
 		this.fileName = fileName;
@@ -42,6 +42,14 @@ public class FileContent {
 
 	public void setXaction_number(int xaction_number) {
 		this.xaction_number = xaction_number;
+	}
+
+	public void setRl(ReplicaLoc rl) {
+		this.rl = rl;
+	}
+
+	public ReplicaLoc getRl() {
+		return rl;
 	}
 
 
