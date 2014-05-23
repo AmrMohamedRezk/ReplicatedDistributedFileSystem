@@ -209,6 +209,9 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 		}
 		rl = replicaList.get(fileName);
 		rl.setAddress(rl.getPrimaryLocation());
+		rl.setAddress("localhost");
+		rl.setPort(8080);
+		rl.setRmiReg_name(rmiReg_name);
 		return new WriteMsg(transactionID++, System.currentTimeMillis(), rl);
 	}
 
