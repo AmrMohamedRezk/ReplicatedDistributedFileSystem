@@ -7,6 +7,8 @@ import java.io.FileReader;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.HashMap;
 
 import Core.FileContent;
@@ -26,10 +28,18 @@ public class Replicas implements ReplicaServerClientInterface {
 	private HashMap<Long, HashMap<Long, FileContent>> pendingTransactions;
 	private HashMap<Long, String> transactionToFileNameMap;
 
-	public Replicas(String location, Master master) {
+	public Replicas(String location,int i) throws RemoteException {
+		Registry registry;
+		System.setProperty("java.rmi.server.hostname", "localhost");
+		registry = LocateRegistry.createRegistry(8080);
+		try {
+			registry.rebind("replica"+i, this);
+		} catch (RemoteException e) {
+			System.out.println("remote exception" + e);
+		}
+
 		root = location;
 		lockManager = new HashMap<String, Boolean>();
-		this.master = master;
 		pendingTransactions = new HashMap<Long, HashMap<Long, FileContent>>();
 		transactionToFileNameMap = new HashMap<Long, String>();
 	}

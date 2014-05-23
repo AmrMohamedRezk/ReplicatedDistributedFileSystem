@@ -5,7 +5,10 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.nio.file.Files;
 import java.rmi.RemoteException;
+import java.rmi.registry.LocateRegistry;
+import java.rmi.registry.Registry;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
@@ -60,9 +63,10 @@ public class Master implements MasterServerClientInterface {
 		BufferedReader br = new BufferedReader(fr);
 		String line;
 		HashMap<String, LinkedList<String>> tempHashMap= new HashMap<String, LinkedList<String>>();//FROM FILE TO PATH 
+		int j=1;
 		while ((line = br.readLine()) != null) {
 			replicasAddress.add(line);
-			replicasObjects.put(line, new Replicas(line, this));
+			replicasObjects.put(line, new Replicas(line,j++));
 			File folder = new File(line);
 			File[] listOfFiles = folder.listFiles();
 			for (int i = 0; i < listOfFiles.length; i++) {
@@ -90,11 +94,15 @@ public class Master implements MasterServerClientInterface {
 			}
 			else if(locations.size()<3)
 			{
+				String filePath = locations.peek()+"\\"+s;
+				File source = new File(filePath);
 				while(locations.size()!=3)
 				{
 					String current = replicasAddress.poll();
 					replicasAddress.add(current);
-					locations.add(current);
+					File dest = new File(current+"\\"+s);
+				    Files.copy(source.toPath(), dest.toPath());
+				 	locations.add(current);
 				}
 				replicaList.put(s, new ReplicaLoc(locations, locations.peek()));
 				for (String s2 : locations) {
@@ -106,7 +114,9 @@ public class Master implements MasterServerClientInterface {
 			{
 				while(locations.size()!=3)
 				{
-					locations.removeLast();
+					String last = locations.removeLast();
+					File f = new File(last+"\\"+s);
+					f.delete();
 				}
 				replicaList.put(s, new ReplicaLoc(locations, locations.peek()));
 				for (String s2 : locations) {
@@ -222,7 +232,15 @@ public class Master implements MasterServerClientInterface {
 	}
 
 	public static void main(String[] args) throws Exception {
+		Registry registry;
+		System.setProperty("java.rmi.server.hostname", "localhost");
+		registry = LocateRegistry.createRegistry(8080);
 		Master m = new Master();
+		try {
+			registry.rebind("rmiServer", m);
+		} catch (RemoteException e) {
+			System.out.println("remote exception" + e);
+		}
 		FileContent fc = new FileContent("test.txt", 0);
 		fc.setContent("This is a test message");
 		WriteMsg wm = m.write(fc);
