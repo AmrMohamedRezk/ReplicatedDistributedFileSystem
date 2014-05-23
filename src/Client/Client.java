@@ -182,7 +182,7 @@ public class Client {
 			FileContent response = MrmiServer.read(fileName);
 			System.out.println("File read with xaction number: "
 					+ response.getXaction_number());
-			System.out.println("name: " + response.getFile_name());
+			System.out.println("name: " + response.getFileName());
 			System.out.println("Content: \n " + response.getContent());
 
 		} catch (Exception e) {

@@ -1,93 +1,234 @@
 package Server;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileNotFoundException;
+import java.io.FileReader;
+import java.io.FileWriter;
 import java.io.IOException;
 import java.rmi.RemoteException;
+import java.util.HashMap;
 
 import Core.FileContent;
 import Core.MessageNotFoundException;
+import Core.ReplicaLoc;
 import Core.WriteMsg;
 import Interface.ReplicaServerClientInterface;
 
-public class Replicas extends Server implements ReplicaServerClientInterface {
-	
+public class Replicas implements ReplicaServerClientInterface {
+
 	/*
-	 * STATUS:
-	 * 1)A lock manager is maintained at each replicaServer.
-	 * 
-	 * 
+	 * STATUS: 1)A lock manager is maintained at each replicaServer.
 	 */
+	private HashMap<String, Boolean> lockManager;
+	private String root;
+	private Master master;
+	private HashMap<Long, HashMap<Long, FileContent>> pendingTransactions;
+	private HashMap<Long, String> transactionToFileNameMap;
+
+	public Replicas(String location, Master master) {
+		root = location;
+		lockManager = new HashMap<String, Boolean>();
+		this.master = master;
+		pendingTransactions = new HashMap<Long, HashMap<Long, FileContent>>();
+		transactionToFileNameMap = new HashMap<Long, String>();
+	}
+
+	public void addLock(String fileName) {
+		lockManager.put(fileName, false);
+	}
 
 	/**
-	 * Writes to files stored on the file system.
-	 *The following procedure is followed:
-	 *1) The client requests a new transaction ID from the server. 
-	 * The request includes the name of the file to be muted during the transaction.
-	 *
-	 *2) The server generates a unique transaction ID and returns it, a timestamp,
-	 * and the location of the primary replica of that file to the client in an 
-	 * acknowledgment to the client's file update request.
+	 * Writes to files stored on the file system. The following procedure is
+	 * followed: 1) The client requests a new transaction ID from the server.
+	 * The request includes the name of the file to be muted during the
+	 * transaction.
 	 * 
-	 *3) If the file specified by the client does not exist, the server creates the 
-	 *file on the replicaServers and initializes its metadata.
+	 * 2) The server generates a unique transaction ID and returns it, a
+	 * timestamp, and the location of the primary replica of that file to the
+	 * client in an acknowledgment to the client's file update request.
 	 * 
-	 *4) All subsequent client messages corresponding to a transaction will be 
-	 *directed to the replicaServer with the primary replica contain the ID of 
-	 *that transaction.
-     * 
-     *5) The client sends to the replicaServer a series of write requests to the 
-     *file specified in the transaction. Each request has a unique serial number. 
-     *The server appends all writes sent by the client to the file. Updates are also 
-     *propagated in the same order to other replicaServers.
-     *
-     *6) The server must keep track of all messages received from the client 
-     *as part of each transaction. The server must also apply file mutations 
-     *based on the correct order of the transactions.
-     *
-     *
-     *7) At the end of the transaction, the client issues a commit request. 
-     *This request guarantees that the file is written on all the replicaServer 
-     *disks. Therefore, each replicaServer flushes the file data to disk and sends 
-     *an acknowledgement of the committed transaction to the primary replicaServer 
-     *for that file. Once the primary replicaServer receives acknowledgements from 
-     *all replicas, it sends an acknowledgement to the client.
-     *
-     *8) The new file must not be seen on the file system until the transaction 
-     *commits. That is a read request to a file that is being updated by an 
-     *uncommitted transaction must generate an error. 
+	 * 3) If the file specified by the client does not exist, the server creates
+	 * the file on the replicaServers and initializes its metadata.
+	 * 
+	 * 4) All subsequent client messages corresponding to a transaction will be
+	 * directed to the replicaServer with the primary replica contain the ID of
+	 * that transaction.
+	 * 
+	 * 5) The client sends to the replicaServer a series of write requests to
+	 * the file specified in the transaction. Each request has a unique serial
+	 * number. The server appends all writes sent by the client to the file.
+	 * Updates are also propagated in the same order to other replicaServers.
+	 * 
+	 * 6) The server must keep track of all messages received from the client as
+	 * part of each transaction. The server must also apply file mutations based
+	 * on the correct order of the transactions.
+	 * 
+	 * 
+	 * 7) At the end of the transaction, the client issues a commit request.
+	 * This request guarantees that the file is written on all the replicaServer
+	 * disks. Therefore, each replicaServer flushes the file data to disk and
+	 * sends an acknowledgement of the committed transaction to the primary
+	 * replicaServer for that file. Once the primary replicaServer receives
+	 * acknowledgements from all replicas, it sends an acknowledgement to the
+	 * client.
+	 * 
+	 * 8) The new file must not be seen on the file system until the transaction
+	 * commits. That is a read request to a file that is being updated by an
+	 * uncommitted transaction must generate an error.
 	 */
 	@Override
 	public WriteMsg write(long txnID, long msgSeqNum, FileContent data)
 			throws RemoteException, IOException {
-		// TODO Auto-generated method stub
-		return null;
+		if (!pendingTransactions.containsKey(txnID)){
+			pendingTransactions.put(txnID, new HashMap<Long, FileContent>());
+			transactionToFileNameMap.put(txnID, data.getFileName());
+		}
+		HashMap<Long, FileContent> transactionLog = pendingTransactions
+				.get(txnID);
+		if (transactionLog.containsKey(msgSeqNum))
+			throw new RemoteException(
+					"Client Already transmitted a transaction with this transatcion ID and message sequence number...");
+		else 
+			transactionLog.put(msgSeqNum, data);
+		
+		return new WriteMsg(txnID, System.currentTimeMillis(),
+				master.getLocations(data.getFileName()));
 	}
 
 	@Override
 	public boolean commit(long txnID, long numOfMsgs)
 			throws MessageNotFoundException, RemoteException {
-		// TODO Auto-generated method stub
-		return false;
+		if (!pendingTransactions.containsKey(txnID))
+			throw new MessageNotFoundException();
+		HashMap<Long, FileContent> transactionLog = pendingTransactions
+				.get(txnID);
+		if (transactionLog.size() != numOfMsgs)
+			throw new RemoteException("INVALID NUMBER OF MESSAGES...");
+		ReplicaLoc loc = master.getLocations(transactionToFileNameMap
+				.get(txnID));
+		for (String path : loc.getAddresses()) {
+			for (Long key : transactionLog.keySet()) {
+				FileContent current = transactionLog.get(key);
+				String fileName = current.getFileName();
+				try {
+					// Acquiring lock...
+					int counter = 0;
+					boolean lock = lockManager.get(fileName);
+					if (lock)
+						System.out
+								.println("File is currently being used by another user...");
+					while (counter < 10 && lock) {
+						try {
+							Thread.sleep(1000);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+						counter++;
+					}
+					if (lock) {
+						System.out.println("File Timeout...Try again later");
+						return false;
+					} else {
+						lock = true;
+						FileWriter fw = new FileWriter(new File(path + "\\"
+								+ fileName),true);
+						fw.append(current.getContent() + "\n");
+						fw.flush();
+						fw.close();
+						lock = false;
+					}
+				} catch (IOException e) {
+					e.printStackTrace();
+				}
+			}
+		}
+		return true;
 	}
+
 	/**
-	 * A client can decide to abort the transaction after it has started. 
-	 * Note, that the client might have already sent write requests to the server. 
-	 * In this case, the client requests transaction abort from the server. 
-	 * The client's abort request is handled as follows: 
-	 * STATUS:
-	 * 1) The primary replicaServer ensures that no data that the client had sent
-	 *  as part of transaction is written to the file on the disk of any of the 
-	 *  replicaServers. 
-	 * STATUS: 
-	 * 2) If a new file was created as part of that transaction, the master server
-	 *   deletes the file from its metadata and the file is deleted from all 
-	 *   replicaServers. 
-	 * STATUS:  
-	 * 3) The primary replicaServer acknowledges the client's abort.
+	 * A client can decide to abort the transaction after it has started. Note,
+	 * that the client might have already sent write requests to the server. In
+	 * this case, the client requests transaction abort from the server. The
+	 * client's abort request is handled as follows: STATUS: 1) The primary
+	 * replicaServer ensures that no data that the client had sent as part of
+	 * transaction is written to the file on the disk of any of the
+	 * replicaServers. STATUS: 2) If a new file was created as part of that
+	 * transaction, the master server deletes the file from its metadata and the
+	 * file is deleted from all replicaServers. STATUS: 3) The primary
+	 * replicaServer acknowledges the client's abort.
 	 */
 	@Override
 	public boolean abort(long txnID) throws RemoteException {
 		// TODO Auto-generated method stub
-		return false;
+		if (!pendingTransactions.containsKey(txnID))
+			throw new RemoteException("INVALID TRANSACTION ID...");
+		HashMap<Long, FileContent> transactionLog = pendingTransactions
+				.get(txnID);
+		String fileName = transactionToFileNameMap.get(txnID);
+		for (Long key : transactionLog.keySet()) {
+			FileContent temp = transactionLog.get(key);
+			if (master.newFileTransactions.contains(temp.getXaction_number())) {
+				for (String s : master.getLocations(fileName).getAddresses()) {
+					int counter = 0;
+					boolean lock = lockManager.get(fileName);
+					if (lock)
+						System.out
+								.println("File is currently being used by another user...");
+					while (counter < 10 && lock) {
+						try {
+							Thread.sleep(1000);
+						} catch (InterruptedException e) {
+							e.printStackTrace();
+						}
+						counter++;
+					}
+					if (lock) {
+						System.out.println("File Timeout...Try again later");
+						return false;
+					} else {
+						lock = true;
+						File f = new File(s + "\\" + fileName);
+						f.delete();
+						lock = false;
+					}
+				}
+			}
+		}
+		pendingTransactions.remove(txnID);
+		return true;
+	}
+
+	@Override
+	public FileContent read(FileContent fc) throws FileNotFoundException,
+			IOException, RemoteException {
+		int counter = 0;
+		boolean lock = lockManager.get(fc.getFileName());
+		if (lock)
+			System.out
+					.println("File is currently being used by another user...");
+		while (counter < 10 && lock) {
+			try {
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			counter++;
+		}
+		if (lock) {
+			System.out.println("File Timeout...Try again later");
+			return null;
+		} else {
+			FileReader fr = new FileReader(new File(root + "\\"
+					+ fc.getFileName()));
+			BufferedReader br = new BufferedReader(fr);
+			String line;
+			StringBuilder sb = new StringBuilder();
+			while ((line = br.readLine()) != null)
+				sb.append(line);
+			fc.setContent(sb.toString());
+			return fc;
+		}
 	}
 
 }

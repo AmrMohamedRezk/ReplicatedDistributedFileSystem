@@ -11,25 +11,7 @@ public class WriteMsg {
 		this.timeStamp = timeStamp;
 		this.loc = loc;
 	}
-	public void setTransactionId(long transactionId) {
-		this.transactionId = transactionId;
-	}
-	public long getTransactionId() {
-		return transactionId;
-	}
-	public void setTimeStamp(long timeStamp) {
-		this.timeStamp = timeStamp;
-	}
-	public long getTimeStamp() {
-		return timeStamp;
-	}
-	public void setLoc(ReplicaLoc loc) {
-		this.loc = loc;
-	}
-	public ReplicaLoc getLoc() {
-		return loc;
-	}
-
+	
 	public long getTransactionId() {
 		return transactionId;
 	}

@@ -1,19 +1,10 @@
 package Core;
 
 public class FileContent {
-	private ReplicaLoc locationList;
 	private String fileName;
-	String file_name;
-	String Content;
-	int xaction_number;
-
-	public void setLocationList(ReplicaLoc locationList) {
-		this.locationList = locationList;
-	}
-
-	public ReplicaLoc getLocationList() {
-		return locationList;
-	}
+	private String Content;
+	long xaction_number;
+	
 
 	public void setFileName(String fileName) {
 		this.fileName = fileName;
@@ -24,22 +15,19 @@ public class FileContent {
 	}
 	
 
-	
+	public FileContent(String name, long xaction) {
+		fileName = name;
+		xaction_number = xaction;
+	}
+
 	public FileContent(String name, String content, int xaction) {
 		// TODO Auto-generated constructor stub
-		file_name = name;
+		fileName = name;
 		Content = content;
 		xaction_number = xaction;
 	}
 
-	public String getFile_name() {
-		return file_name;
-	}
-
-	public void setFile_name(String file_name) {
-		this.file_name = file_name;
-	}
-
+	
 	public String getContent() {
 		return Content;
 	}
@@ -48,12 +36,13 @@ public class FileContent {
 		Content = content;
 	}
 
-	public int getXaction_number() {
+	public long getXaction_number() {
 		return xaction_number;
 	}
 
 	public void setXaction_number(int xaction_number) {
 		this.xaction_number = xaction_number;
 	}
+
 
 }

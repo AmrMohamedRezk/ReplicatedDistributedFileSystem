@@ -5,6 +5,9 @@ import java.util.LinkedList;
 public class ReplicaLoc {
 	private LinkedList<String> locationList;
 	private String primaryLocation;
+	private String address;
+	private int port;
+	private String rmiReg_name;
 	public ReplicaLoc(LinkedList<String> locationList,String primaryLocation)
 	{
 		this.locationList=locationList;
@@ -15,7 +18,14 @@ public class ReplicaLoc {
 	{
 		locationList.add(locationList.poll());
 	}
-
+	public LinkedList<String> getAddresses()
+	{
+		return locationList;
+	}
+	public String getFirstLocation()
+	{
+		return locationList.peek();
+	}
 	public void setPrimaryLocation(String primaryLocation) {
 		this.primaryLocation = primaryLocation;
 	}
@@ -24,9 +34,7 @@ public class ReplicaLoc {
 		return primaryLocation;
 	}
 	
-	String address;
-	int port;
-	String rmiReg_name;
+	
 	public String getAddress() {
 		return address;
 	}
