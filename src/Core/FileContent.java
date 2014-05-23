@@ -1,10 +1,17 @@
 package Core;
 
-public class FileContent {
+import java.io.Serializable;
+
+public class FileContent implements Serializable {
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	private String fileName;
 	private String Content;
 	long xaction_number;
-	//private ReplicaLoc rl;
+
+	// private ReplicaLoc rl;
 
 	public void setFileName(String fileName) {
 		this.fileName = fileName;
@@ -13,7 +20,6 @@ public class FileContent {
 	public String getFileName() {
 		return fileName;
 	}
-	
 
 	public FileContent(String name, long xaction) {
 		fileName = name;
@@ -27,7 +33,6 @@ public class FileContent {
 		xaction_number = xaction;
 	}
 
-	
 	public String getContent() {
 		return Content;
 	}
@@ -44,13 +49,12 @@ public class FileContent {
 		this.xaction_number = xaction_number;
 	}
 
-//	public void setRl(ReplicaLoc rl) {
-//		this.rl = rl;
-//	}
-//
-//	public ReplicaLoc getRl() {
-//		return rl;
-//	}
-
+	// public void setRl(ReplicaLoc rl) {
+	// this.rl = rl;
+	// }
+	//
+	// public ReplicaLoc getRl() {
+	// return rl;
+	// }
 
 }

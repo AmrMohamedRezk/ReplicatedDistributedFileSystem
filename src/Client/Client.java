@@ -77,6 +77,7 @@ public class Client {
 	 */
 	public WriteMsg write(WriteMsg wm, FileContent data)
 			throws RemoteException, IOException {
+		System.setProperty("java.rmi.server.hostname", "localhost");
 		MasterServerClientInterface MrmiServer;
 		ReplicaServerClientInterface RrmiServer;
 		Registry Mregistry, Rregistry;
@@ -85,8 +86,8 @@ public class Client {
 		try {
 			// calling the Master server
 			if (wm == null) {
-				Mregistry = LocateRegistry.getRegistry(MSaddress, (new Integer(
-						MSport_number)).intValue());
+				Mregistry = LocateRegistry.getRegistry("localhost",
+						(new Integer(5555)).intValue());
 				MrmiServer = (MasterServerClientInterface) (Mregistry
 						.lookup("rmiServer"));
 				// call the remote method
@@ -116,7 +117,7 @@ public class Client {
 
 	public boolean commit(WriteMsg wmessage, long numOfMsgs)
 			throws MessageNotFoundException, RemoteException {
-
+		System.setProperty("java.rmi.server.hostname", "127.0.0.1");
 		ReplicaServerClientInterface RrmiServer;
 		Registry Rregistry;
 		try {
@@ -152,6 +153,7 @@ public class Client {
 	 */
 	public boolean abort(WriteMsg wmessage) throws RemoteException {
 		// TODO Auto-generated method stub
+		System.setProperty("java.rmi.server.hostname", "127.0.0.1");
 		ReplicaServerClientInterface RrmiServer;
 		Registry Rregistry;
 		try {
@@ -179,7 +181,7 @@ public class Client {
 	 */
 	public void read(String fileName) throws FileNotFoundException,
 			IOException, RemoteException {
-
+		System.setProperty("java.rmi.server.hostname", "127.0.0.1");
 		MasterServerClientInterface MrmiServer;
 		Registry registry;
 

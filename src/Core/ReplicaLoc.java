@@ -1,8 +1,13 @@
 package Core;
 
+import java.io.Serializable;
 import java.util.LinkedList;
 
-public class ReplicaLoc {
+public class ReplicaLoc implements Serializable{
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	private LinkedList<String> locationList;
 	private String primaryLocation;
 	private String address;

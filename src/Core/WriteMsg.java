@@ -1,6 +1,12 @@
 package Core;
 
-public class WriteMsg {
+import java.io.Serializable;
+
+public class WriteMsg implements Serializable{
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	private long transactionId;
 	private long timeStamp;
 	private ReplicaLoc loc;

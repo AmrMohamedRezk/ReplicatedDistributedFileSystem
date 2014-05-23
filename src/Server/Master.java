@@ -1,5 +1,6 @@
 package Server;
 
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -18,8 +19,13 @@ import Core.ReplicaLoc;
 import Core.WriteMsg;
 import Interface.MasterServerClientInterface;
 
-public class Master implements MasterServerClientInterface {
+public class Master extends java.rmi.server.UnicastRemoteObject implements
+		MasterServerClientInterface {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	/*
 	 * ========================================================================
 	 * STATUS: 1)The master server maintains metadata about the replicas and
@@ -62,17 +68,21 @@ public class Master implements MasterServerClientInterface {
 		FileReader fr = new FileReader(new File(repServerFileName));
 		BufferedReader br = new BufferedReader(fr);
 		String line;
-		HashMap<String, LinkedList<String>> tempHashMap= new HashMap<String, LinkedList<String>>();//FROM FILE TO PATH 
-		int j=1;
+		HashMap<String, LinkedList<String>> tempHashMap = new HashMap<String, LinkedList<String>>();// FROM
+																									// FILE
+																									// TO
+																									// PATH
+		int j = 1;
 		while ((line = br.readLine()) != null) {
 			replicasAddress.add(line);
-			replicasObjects.put(line, new Replicas(line,j++,this));
+			replicasObjects.put(line, new Replicas(line, j++, this));
 			File folder = new File(line);
 			File[] listOfFiles = folder.listFiles();
 			for (int i = 0; i < listOfFiles.length; i++) {
 				if (listOfFiles[i].isFile()) {
-					if(!tempHashMap.containsKey(listOfFiles[i].getName()))
-						tempHashMap.put(listOfFiles[i].getName(), new LinkedList<String>());
+					if (!tempHashMap.containsKey(listOfFiles[i].getName()))
+						tempHashMap.put(listOfFiles[i].getName(),
+								new LinkedList<String>());
 					tempHashMap.get(listOfFiles[i].getName()).add(line);
 				}
 			}
@@ -81,48 +91,41 @@ public class Master implements MasterServerClientInterface {
 			System.err.println("SIZE OF REPLICAS MUST BE >= 3");
 			System.exit(0);
 		}
-		for(String s : tempHashMap.keySet())
-		{
-			//s  is the fileName
+		for (String s : tempHashMap.keySet()) {
+			// s is the fileName
 			LinkedList<String> locations = tempHashMap.get(s);
-			if(locations.size()==3){
+			if (locations.size() == 3) {
 				replicaList.put(s, new ReplicaLoc(locations, locations.peek()));
 				for (String s2 : locations) {
-				Replicas r = replicasObjects.get(s2);
-				r.addLock(s);
+					Replicas r = replicasObjects.get(s2);
+					r.addLock(s);
 				}
-			}
-			else if(locations.size()<3)
-			{
-				String filePath = locations.peek()+"\\"+s;
+			} else if (locations.size() < 3) {
+				String filePath = locations.peek() + "\\" + s;
 				File source = new File(filePath);
-				while(locations.size()!=3)
-				{
+				while (locations.size() != 3) {
 					String current = replicasAddress.poll();
 					replicasAddress.add(current);
-					File dest = new File(current+"\\"+s);
-				    Files.copy(source.toPath(), dest.toPath());
-				 	locations.add(current);
+					File dest = new File(current + "\\" + s);
+					Files.copy(source.toPath(), dest.toPath());
+					locations.add(current);
 				}
 				replicaList.put(s, new ReplicaLoc(locations, locations.peek()));
 				for (String s2 : locations) {
 					Replicas r = replicasObjects.get(s2);
 					r.addLock(s);
-					}
-			}
-			else if(locations.size()>3)
-			{
-				while(locations.size()!=3)
-				{
+				}
+			} else if (locations.size() > 3) {
+				while (locations.size() != 3) {
 					String last = locations.removeLast();
-					File f = new File(last+"\\"+s);
+					File f = new File(last + "\\" + s);
 					f.delete();
 				}
 				replicaList.put(s, new ReplicaLoc(locations, locations.peek()));
 				for (String s2 : locations) {
 					Replicas r = replicasObjects.get(s2);
 					r.addLock(s);
-					}
+				}
 			}
 		}
 
@@ -210,7 +213,7 @@ public class Master implements MasterServerClientInterface {
 	}
 
 	private ReplicaLoc createFile(String fileName) throws IOException {
-		
+
 		String primary = replicasAddress.peek();
 		replicasAddress.add(replicasAddress.poll());
 		LinkedList<String> replicaLocations = new LinkedList<String>();
@@ -232,25 +235,25 @@ public class Master implements MasterServerClientInterface {
 	}
 
 	public static void main(String[] args) throws Exception {
-		Registry registry;
 		System.setProperty("java.rmi.server.hostname", "localhost");
-		registry = LocateRegistry.createRegistry(8080);
+		Registry registry = LocateRegistry.createRegistry(5555);
 		Master m = new Master();
 		try {
+
 			registry.rebind("rmiServer", m);
 		} catch (RemoteException e) {
 			System.out.println("remote exception" + e);
 		}
-		FileContent fc = new FileContent("test.txt", 0);
-		fc.setContent("This is a test message");
-		WriteMsg wm = m.write(fc);
-		Replicas r = m.getReplicasObjects().get(wm.getLoc().getAddress());
-		r.write(fc.getXaction_number(), 0, fc);
-		FileContent fc2 = new FileContent("test.txt", 0);
-		fc2.setContent("This is a second test message");
-		r.write(fc2.getXaction_number(), 1, fc2);
-		r.commit(0, 2);
-//		m.read("test.txt");
+		// FileContent fc = new FileContent("test.txt", 0);
+		// fc.setContent("This is a test message");
+		// WriteMsg wm = m.write(fc);
+		// Replicas r = m.getReplicasObjects().get(wm.getLoc().getAddress());
+		// r.write(fc.getXaction_number(), 0, fc);
+		// FileContent fc2 = new FileContent("test.txt", 0);
+		// fc2.setContent("This is a second test message");
+		// r.write(fc2.getXaction_number(), 1, fc2);
+		// r.commit(0, 2);
+		// m.read("test.txt");
 
 	}
 }

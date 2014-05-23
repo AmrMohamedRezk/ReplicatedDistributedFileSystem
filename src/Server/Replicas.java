@@ -17,8 +17,13 @@ import Core.ReplicaLoc;
 import Core.WriteMsg;
 import Interface.ReplicaServerClientInterface;
 
-public class Replicas implements ReplicaServerClientInterface {
+public class Replicas extends java.rmi.server.UnicastRemoteObject implements
+		ReplicaServerClientInterface {
 
+	/**
+	 * 
+	 */
+	private static final long serialVersionUID = 1L;
 	/*
 	 * STATUS: 1)A lock manager is maintained at each replicaServer.
 	 */
@@ -28,13 +33,13 @@ public class Replicas implements ReplicaServerClientInterface {
 	private HashMap<Long, HashMap<Long, FileContent>> pendingTransactions;
 	private HashMap<Long, String> transactionToFileNameMap;
 
-	public Replicas(String location,int i,Master m) throws RemoteException {
+	public Replicas(String location, int i, Master m) throws RemoteException {
 		master = m;
 		Registry registry;
 		System.setProperty("java.rmi.server.hostname", "localhost");
-		registry = LocateRegistry.createRegistry(8080+i);
+		registry = LocateRegistry.createRegistry(8080 + i);
 		try {
-			registry.rebind("replica"+i, this);
+			registry.rebind("replica" + i, this);
 		} catch (RemoteException e) {
 			System.out.println("remote exception" + e);
 		}
@@ -91,7 +96,7 @@ public class Replicas implements ReplicaServerClientInterface {
 	@Override
 	public WriteMsg write(long txnID, long msgSeqNum, FileContent data)
 			throws RemoteException, IOException {
-		if (!pendingTransactions.containsKey(txnID)){
+		if (!pendingTransactions.containsKey(txnID)) {
 			pendingTransactions.put(txnID, new HashMap<Long, FileContent>());
 			transactionToFileNameMap.put(txnID, data.getFileName());
 		}
@@ -100,9 +105,9 @@ public class Replicas implements ReplicaServerClientInterface {
 		if (transactionLog.containsKey(msgSeqNum))
 			throw new RemoteException(
 					"Client Already transmitted a transaction with this transatcion ID and message sequence number...");
-		else 
+		else
 			transactionLog.put(msgSeqNum, data);
-		
+
 		return new WriteMsg(txnID, System.currentTimeMillis(),
 				master.getLocations(data.getFileName()));
 	}
@@ -143,7 +148,7 @@ public class Replicas implements ReplicaServerClientInterface {
 					} else {
 						lock = true;
 						FileWriter fw = new FileWriter(new File(path + "\\"
-								+ fileName),true);
+								+ fileName), true);
 						fw.append(current.getContent() + "\n");
 						fw.flush();
 						fw.close();
