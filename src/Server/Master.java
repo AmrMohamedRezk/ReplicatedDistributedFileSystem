@@ -56,25 +56,25 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 	private HashMap<String, Replicas> replicasObjects;// map from replica Name
 														// to replica location
 	private LinkedList<String> replicasAddress;
-	public HashSet<Long> newFileTransactions;
 	private long transactionID;
+	public HashMap<String, Boolean>replicasHeartBeats;
 
 	public Master() throws Exception {
 		replicaList = new HashMap<String, ReplicaLoc>();
 		replicasAddress = new LinkedList<String>();
 		replicasObjects = new HashMap<String, Replicas>();
-		newFileTransactions = new HashSet<Long>();
 		FileReader fr = new FileReader(new File(repServerFileName));
 		BufferedReader br = new BufferedReader(fr);
 		String line;
 		HashMap<String, LinkedList<String>> tempHashMap = new HashMap<String, LinkedList<String>>();// FROM
 																									// FILE
 																									// TO
-																									// PATH
+		replicasHeartBeats = new HashMap<String, Boolean>();																							// PATH
 		int j = 1;
 		while ((line = br.readLine()) != null) {
 			replicasAddress.add(line);
 			replicasObjects.put(line, new Replicas(line, j++, this));
+			replicasHeartBeats.put(line, false);
 			// System.out.println(line);
 			File folder = new File(line);
 
@@ -129,7 +129,44 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 				}
 			}
 		}
+		Runnable r = new Runnable() {
+			public void run() {
+				try {
+					while (true) {
+						Thread.sleep(5000);
+						HashSet<String> indices = new HashSet<String>();
+						for(String s : replicasHeartBeats.keySet()){
+							boolean flag = replicasHeartBeats.get(s);
+							if (!flag) {
+								System.err.println("REPLICA "
+										+ s
+										+ " IS DEAD...");
+								System.err
+										.println("REMOVING IT FROM THE SYSTEM...");
+								indices.add(s);
+							}else
+								replicasHeartBeats.put(s, false);
 
+						}
+						//TODO HANDLE HOW TO REMOVE A REPLICA FROM THE SYSTEM...
+						//RETRIEVE IT'S FILE AND REDISTRIBUTE THEM...
+						for (String s : indices) {
+							replicaList.remove(s);
+							replicasObjects.remove(s);
+							replicasHeartBeats.remove(s);
+						}
+						for (String s : replicasAddress)
+							if (indices.contains(s))
+								replicasAddress.remove(s);
+					}
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		};
+
+		new Thread(r).start();
 		transactionID = 0L;
 	}
 
@@ -152,11 +189,11 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 			throw new FileNotFoundException();
 		FileContent currentFileContent = new FileContent(fileName,
 				transactionID++);
-		ReplicaLoc rl = replicaList.get(fileName);		
+		ReplicaLoc rl = replicaList.get(fileName);
 		Replicas r = replicasObjects.get(rl.getFirstLocation());
 		rl.setAddress(r.getAddress());
 		rl.setPort(r.getPort());
-		rl.setRmiReg_name(r.getRmi_name());		
+		rl.setRmiReg_name(r.getRmi_name());
 		rl.advanceQueue();
 		currentFileContent.setRl(rl);
 		return currentFileContent;
@@ -207,10 +244,9 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 		// TODO Auto-generated method stub
 		String fileName = data.getFileName();
 		ReplicaLoc rl = null;
-		if (!replicaList.containsKey(fileName)) {
+		if (!replicaList.containsKey(fileName)) 
 			replicaList.put(fileName, createFile(fileName));
-			newFileTransactions.add(data.getXaction_number());
-		}
+		
 		rl = replicaList.get(fileName);
 		Replicas r = replicasObjects.get(rl.getPrimaryLocation());
 		rl.setPrimaryLocation(rl.getPrimaryLocation());
@@ -231,13 +267,8 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 		replicaLocations.add(replicasAddress.peek());
 		replicasAddress.add(replicasAddress.poll());
 		for (String s : replicaLocations) {
-			File f = new File(s + "\\" + fileName);
-			if (!f.createNewFile())
-				throw new IOException("ERROR IN FILE CREATION AT " + fileName);
-			else {
-				Replicas r = replicasObjects.get(s);
-				r.addLock(fileName);
-			}
+			Replicas r = replicasObjects.get(s);
+			r.addLock(fileName);
 		}
 		return new ReplicaLoc(replicaLocations, primary);
 	}

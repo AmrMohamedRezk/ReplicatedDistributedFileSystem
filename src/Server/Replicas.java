@@ -53,6 +53,21 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 		lockManager = new HashMap<String, Boolean>();
 		pendingTransactions = new HashMap<Long, HashMap<Long, FileContent>>();
 		transactionToFileNameMap = new HashMap<Long, String>();
+		Runnable r = new Runnable() {
+			public void run() {
+				try {
+					while (true) {
+						Thread.sleep(3000);
+						master.replicasHeartBeats.put(root, true);
+					}
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+		};
+
+		new Thread(r).start();
 	}
 
 	public void addLock(String fileName) {
@@ -120,6 +135,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 	@Override
 	public boolean commit(long txnID, long numOfMsgs)
 			throws MessageNotFoundException, RemoteException {
+
 		if (!pendingTransactions.containsKey(txnID))
 			throw new MessageNotFoundException();
 		HashMap<Long, FileContent> transactionLog = pendingTransactions
@@ -151,13 +167,20 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 						System.out.println("File Timeout...Try again later");
 						return false;
 					} else {
-						lock = true;
+						lockManager.put(fileName, true);
+						try {
+							Thread.sleep(20000);
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
 						FileWriter fw = new FileWriter(new File(path + "\\"
 								+ fileName), true);
 						fw.append(current.getContent() + "\n");
 						fw.flush();
 						fw.close();
-						lock = false;
+						// master.newFileTransactions.remove(fileName);
+						lockManager.put(fileName, false);
 					}
 				} catch (IOException e) {
 					e.printStackTrace();
@@ -184,38 +207,6 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 		// TODO Auto-generated method stub
 		if (!pendingTransactions.containsKey(txnID))
 			throw new RemoteException("INVALID TRANSACTION ID...");
-		HashMap<Long, FileContent> transactionLog = pendingTransactions
-				.get(txnID);
-		String fileName = transactionToFileNameMap.get(txnID);
-		for (Long key : transactionLog.keySet()) {
-			FileContent temp = transactionLog.get(key);
-			if (master.newFileTransactions.contains(temp.getXaction_number())) {
-				for (String s : master.getLocations(fileName).getAddresses()) {
-					int counter = 0;
-					boolean lock = lockManager.get(fileName);
-					if (lock)
-						System.out
-								.println("File is currently being used by another user...");
-					while (counter < 10 && lock) {
-						try {
-							Thread.sleep(1000);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
-						counter++;
-					}
-					if (lock) {
-						System.out.println("File Timeout...Try again later");
-						return false;
-					} else {
-						lock = true;
-						File f = new File(s + "\\" + fileName);
-						f.delete();
-						lock = false;
-					}
-				}
-			}
-		}
 		pendingTransactions.remove(txnID);
 		return true;
 	}
@@ -223,6 +214,10 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 	@Override
 	public FileContent read(FileContent fc) throws FileNotFoundException,
 			IOException, RemoteException {
+		File f = new File(root + "\\" + fc.getFileName());
+		if (!f.exists())
+			throw new FileNotFoundException(
+					"File not found ... you must commit first before u can read...");
 		int counter = 0;
 		boolean lock = lockManager.get(fc.getFileName());
 		if (lock)
@@ -245,8 +240,12 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 			String line;
 			StringBuilder sb = new StringBuilder();
 			while ((line = br.readLine()) != null)
-				sb.append(line);
-			System.out.println("here : *** " + sb.toString());
+				// <<<<<<< HEAD
+				// sb.append(line);
+				// System.out.println("here : *** " + sb.toString());
+				// =======
+				sb.append(line + "\n");
+			// >>>>>>> 42b95f0b46d1b6c57897001b2cd40493d7f1393a
 			fc.setContent(sb.toString());
 			return fc;
 		}
