@@ -75,9 +75,9 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 		while ((line = br.readLine()) != null) {
 			replicasAddress.add(line);
 			replicasObjects.put(line, new Replicas(line, j++, this));
-//			System.out.println(line);
+			// System.out.println(line);
 			File folder = new File(line);
-			
+
 			File[] listOfFiles = folder.listFiles();
 			for (int i = 0; i < listOfFiles.length; i++) {
 				if (listOfFiles[i].isFile()) {
@@ -228,7 +228,7 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 		replicaLocations.add(replicasAddress.peek());
 		replicasAddress.add(replicasAddress.poll());
 		for (String s : replicaLocations) {
-			File f = new File(s + "\\" + fileName);
+			File f = new File(s + fileName);
 			if (!f.createNewFile())
 				throw new IOException("ERROR IN FILE CREATION AT " + fileName);
 			else {
