@@ -20,7 +20,7 @@ public class Client {
 	int MSport_number;
 	String MSaddress;
 	String server_name;
-
+	static int index = 0;
 	public Client() throws FileNotFoundException {
 		Scanner scan = new Scanner(new File("MasterServer.txt"));
 		MSaddress = scan.nextLine();
@@ -203,10 +203,10 @@ public class Client {
 			ReplicaServerClientInterface RrmiServer = (ReplicaServerClientInterface) (Rregistry
 					.lookup(rl.getRmiReg_name()));
 			FileContent c = new FileContent(fileName, transactionId);
-			RrmiServer.read(c);
-			System.out.println("File name : "+c.getFileName());
-			System.out.println("Xaction id : "+c.getXaction_number());
-			System.out.println("Content: \n"+ c.getContent());
+			c = RrmiServer.read(c);
+			System.out.println("File name : " + c.getFileName());
+			System.out.println("Xaction id : " + c.getXaction_number());
+			System.out.println("Content: \n" + c.getContent());
 
 		} catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -216,7 +216,7 @@ public class Client {
 
 	public static void main(String[] args) throws RemoteException, IOException,
 			MessageNotFoundException {
-		Client c = new Client();
+		// Client c = new Client();
 		// FileContent content = new FileContent("Ahmad.txt", 0);
 		// content.setContent("I am testing :P :P ");
 		// WriteMsg m = c.write(null, content);
@@ -224,7 +224,32 @@ public class Client {
 		// content.setContent("I am testing :P :P ");
 		// c.write(m, content);
 		// c.commit(m, 2);
-		c.read("\\Ahmad.txt");
+		// //c.read("Ahmad.txt");
+		for (int i = 0; i < 3; i++) {
+			Runnable r = new Runnable() {
+		         public void run() {
+		        	 try{
+		        		Client c = new Client();
+		    			FileContent content = new FileContent("Ahmad.txt", Client.index);
+		    			Client.index++;
+		    			content.setContent("not seen 1 :P :P ");
+		    			WriteMsg m = c.write(null, content);
+		    			content = new FileContent("Ahmad.txt", m.getTransactionId());
+		    			content.setContent("not seen 2 :P :P ");
+		    			c.write(m, content);
+		    			// c.abort(m);
+		    			c.commit(m, 2);
+		    			c.read("amr.txt");
+		        	 }catch(Exception e )
+		        	 {
+		        		 e.printStackTrace();
+		        	 }
+ 
+		         }
+		     };
+
+		     new Thread(r).start();
+				}
 
 	}
 }
