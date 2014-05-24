@@ -247,6 +247,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 			StringBuilder sb = new StringBuilder();
 			while ((line = br.readLine()) != null)
 				sb.append(line);
+			System.out.println("here : *** "+sb.toString());
 			fc.setContent(sb.toString());
 			return fc;
 		}

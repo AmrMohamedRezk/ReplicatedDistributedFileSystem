@@ -11,7 +11,7 @@ public class FileContent implements Serializable {
 	private String Content;
 	long xaction_number;
 
-	// private ReplicaLoc rl;
+	 private ReplicaLoc rl;
 
 	public void setFileName(String fileName) {
 		this.fileName = fileName;
@@ -49,12 +49,12 @@ public class FileContent implements Serializable {
 		this.xaction_number = xaction_number;
 	}
 
-	// public void setRl(ReplicaLoc rl) {
-	// this.rl = rl;
-	// }
-	//
-	// public ReplicaLoc getRl() {
-	// return rl;
-	// }
+	 public void setRl(ReplicaLoc rl) {
+	 this.rl = rl;
+	 }
+	
+	 public ReplicaLoc getRl() {
+	 return rl;
+	 }
 
 }

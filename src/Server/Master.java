@@ -155,7 +155,7 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 		ReplicaLoc rl = replicaList.get(fileName);
 		rl.setAddress(rl.getFirstLocation());
 		rl.advanceQueue();
-		// currentFileContent.setLocationList(rl);
+		currentFileContent.setRl(rl);
 		return currentFileContent;
 	}
 
