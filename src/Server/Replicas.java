@@ -240,14 +240,13 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 			System.out.println("File Timeout...Try again later");
 			return null;
 		} else {
-			FileReader fr = new FileReader(new File(root + "\\"
-					+ fc.getFileName()));
+			FileReader fr = new FileReader(new File(root + fc.getFileName()));
 			BufferedReader br = new BufferedReader(fr);
 			String line;
 			StringBuilder sb = new StringBuilder();
 			while ((line = br.readLine()) != null)
 				sb.append(line);
-			System.out.println("here : *** "+sb.toString());
+			System.out.println("here : *** " + sb.toString());
 			fc.setContent(sb.toString());
 			return fc;
 		}

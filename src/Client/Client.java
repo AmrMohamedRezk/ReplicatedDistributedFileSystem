@@ -203,10 +203,10 @@ public class Client {
 			ReplicaServerClientInterface RrmiServer = (ReplicaServerClientInterface) (Rregistry
 					.lookup(rl.getRmiReg_name()));
 			FileContent c = new FileContent(fileName, transactionId);
-			RrmiServer.read(c);
-			System.out.println("File name : "+c.getFileName());
-			System.out.println("Xaction id : "+c.getXaction_number());
-			System.out.println("Content: \n"+ c.getContent());
+			c = RrmiServer.read(c);
+			System.out.println("File name : " + c.getFileName());
+			System.out.println("Xaction id : " + c.getXaction_number());
+			System.out.println("Content: \n" + c.getContent());
 
 		} catch (Exception e) {
 			System.err.println(e.getMessage());
@@ -216,15 +216,71 @@ public class Client {
 
 	public static void main(String[] args) throws RemoteException, IOException,
 			MessageNotFoundException {
-		Client c = new Client();
-		// FileContent content = new FileContent("Ahmad.txt", 0);
-		// content.setContent("I am testing :P :P ");
-		// WriteMsg m = c.write(null, content);
-		// content = new FileContent("Ahmad.txt", m.getTransactionId());
-		// content.setContent("I am testing :P :P ");
-		// c.write(m, content);
-		// c.commit(m, 2);
-		c.read("\\Ahmad.txt");
+		Client c1 = new Client();
+		Client c2 = new Client();
+
+		System.out.println("Creating data for testing ........ !");
+		FileContent fc = new FileContent("c1.txt", 1);
+		FileContent fc1 = new FileContent("c2.txt", 1);
+
+		fc.setContent("I am Client one");
+		fc1.setContent("I am Client two");
+
+		System.out.println("Each client write and read from his file...!");
+		System.out.println("client 1");
+		WriteMsg m = c1.write(null, fc);
+		c1.commit(m, 1);
+		System.out.println("read:  \n");
+		c1.read("\\c1.txt");
+
+		System.out.println("client 2");
+		m = c2.write(null, fc1);
+		c2.commit(m, 1);
+		System.out.println("read:  \n");
+		c2.read("\\c2.txt");
+
+		System.out
+				.println(" client 1  write and commit with wrong number of messages and client 2 write and abort ");
+		System.out.println("client 1");
+		m = c1.write(null, fc);
+		c1.commit(m, 2);
+
+		System.out.println("client 2");
+		m = c2.write(null, fc1);
+		c2.abort(m);
+		System.out.println("read:  \n");
+		c2.read("\\c2.txt");
+
+		System.out
+				.println("client1 try to access file which client2 is writing in ");
+
+		System.out.println("client 2");
+		m = c2.write(null, fc1);
+		System.out.println("client 1");
+		System.out.println("read:  \n");
+		c1.read("\\c2.txt");
+		System.out.println("client 2 commit and client 1 read");
+		c2.commit(m, 1);
+		System.out.println("read:  \n");
+		c1.read("\\c2.txt");
+
+		System.out
+				.println("client1 try to access file newly created bt Client 2 and not commited and aborted ");
+
+		FileContent fnew = new FileContent("disappear.txt", 1);
+		m = c2.write(null, fnew);
+		c1.read("\\disappear.txt");
+		c2.abort(m);
+
+		System.out
+				.println("client1 try to access file newly created bt Client 2 and not commited  then commited and seen :D  ");
+
+		fnew = new FileContent("trick.txt", 1);
+		fnew.setContent("Yuuuuuuuuuuupy");
+		m = c2.write(null, fnew);
+		c1.read("\\trick.txt");
+		c2.commit(m, 1);
+		c1.read("\\trick.txt");
 
 	}
 }
