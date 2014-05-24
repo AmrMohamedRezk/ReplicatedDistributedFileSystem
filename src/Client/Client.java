@@ -81,7 +81,7 @@ public class Client {
 		MasterServerClientInterface MrmiServer;
 		ReplicaServerClientInterface RrmiServer;
 		Registry Mregistry, Rregistry;
-		Random generator = new Random(5);
+		Random generator = new Random();
 		WriteMsg response;
 		try {
 			// calling the Master server
@@ -208,11 +208,13 @@ public class Client {
 			MessageNotFoundException {
 		Client c = new Client();
 		FileContent content = new FileContent("Ahmad.txt", 0);
+		content.setContent("I am testing :P :P ");
+		WriteMsg m = c.write(null, content);
+		content = new FileContent("Ahmad.txt", m.getTransactionId());
+		content.setContent("I am testing :P :P ");
+		c.write(m, content);
+		c.commit(m, 2);
 		c.read("Ahmad.txt");
-		// WriteMsg m = c.write(null, content);
-		// content = new FileContent("Ahmad.txt", m.getTransactionId());
-		// content.setContent("I am testing :P :P ");
-		// c.commit(m, 1);
 
 	}
 }
