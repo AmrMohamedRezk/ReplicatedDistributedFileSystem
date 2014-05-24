@@ -193,13 +193,23 @@ public class Client {
 					.lookup(server_name));
 			// call the remote method
 			FileContent response = MrmiServer.read(fileName);
-			System.out.println("File read with xaction number: "
-					+ response.getXaction_number());
-			System.out.println("name: " + response.getFileName());
-			System.out.println("Content: \n " + response.getContent());
+			long transactionId = response.getXaction_number();
+
+			ReplicaLoc rl = response.getRl();
+			// int seq_no = generator.nextInt();
+			// calling the Primary replica
+			Registry Rregistry = LocateRegistry.getRegistry(rl.getAddress(),
+					(new Integer(rl.getPort())).intValue());
+			ReplicaServerClientInterface RrmiServer = (ReplicaServerClientInterface) (Rregistry
+					.lookup(rl.getRmiReg_name()));
+			FileContent c = new FileContent(fileName, transactionId);
+			RrmiServer.read(c);
+			System.out.println("File name : "+c.getFileName());
+			System.out.println("Xaction id : "+c.getXaction_number());
+			System.out.println("Content: \n"+ c.getContent());
 
 		} catch (Exception e) {
-			// TODO: handle exception
+			System.err.println(e.getMessage());
 		}
 
 	}
@@ -207,14 +217,14 @@ public class Client {
 	public static void main(String[] args) throws RemoteException, IOException,
 			MessageNotFoundException {
 		Client c = new Client();
-		FileContent content = new FileContent("Ahmad.txt", 0);
-		content.setContent("I am testing :P :P ");
-		WriteMsg m = c.write(null, content);
-		content = new FileContent("Ahmad.txt", m.getTransactionId());
-		content.setContent("I am testing :P :P ");
-		c.write(m, content);
-		c.commit(m, 2);
-		c.read("Ahmad.txt");
+		// FileContent content = new FileContent("Ahmad.txt", 0);
+		// content.setContent("I am testing :P :P ");
+		// WriteMsg m = c.write(null, content);
+		// content = new FileContent("Ahmad.txt", m.getTransactionId());
+		// content.setContent("I am testing :P :P ");
+		// c.write(m, content);
+		// c.commit(m, 2);
+		c.read("\\Ahmad.txt");
 
 	}
 }
