@@ -168,12 +168,12 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 						return false;
 					} else {
 						lockManager.put(fileName, true);
-						try {
-							Thread.sleep(20000);
-						} catch (InterruptedException e) {
-							// TODO Auto-generated catch block
-							e.printStackTrace();
-						}
+//						try {
+//							Thread.sleep(20000);
+//						} catch (InterruptedException e) {
+//							// TODO Auto-generated catch block
+//							e.printStackTrace();
+//						}
 						FileWriter fw = new FileWriter(new File(path + "\\"
 								+ fileName), true);
 						fw.append(current.getContent() + "\n");
@@ -235,7 +235,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 			System.out.println("File Timeout...Try again later");
 			return null;
 		} else {
-			FileReader fr = new FileReader(new File(root + fc.getFileName()));
+			FileReader fr = new FileReader(new File(root+"\\" + fc.getFileName()));
 			BufferedReader br = new BufferedReader(fr);
 			String line;
 			StringBuilder sb = new StringBuilder();
