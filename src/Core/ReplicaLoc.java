@@ -13,7 +13,8 @@ public class ReplicaLoc implements Serializable {
 	private String address;
 	private int port;
 	private String rmiReg_name;
-
+	
+		
 	public ReplicaLoc(LinkedList<String> locationList, String primaryLocation) {
 		this.locationList = locationList;
 		this.setPrimaryLocation(primaryLocation);
@@ -42,6 +43,7 @@ public class ReplicaLoc implements Serializable {
 	public String getAddress() {
 		return address;
 	}
+	
 
 	public void setAddress(String address) {
 		this.address = address;

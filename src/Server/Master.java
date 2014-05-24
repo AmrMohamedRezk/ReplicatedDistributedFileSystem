@@ -152,8 +152,11 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 			throw new FileNotFoundException();
 		FileContent currentFileContent = new FileContent(fileName,
 				transactionID++);
-		ReplicaLoc rl = replicaList.get(fileName);
-		rl.setAddress(rl.getFirstLocation());
+		ReplicaLoc rl = replicaList.get(fileName);		
+		Replicas r = replicasObjects.get(rl.getFirstLocation());
+		rl.setAddress(r.getAddress());
+		rl.setPort(r.getPort());
+		rl.setRmiReg_name(r.getRmi_name());		
 		rl.advanceQueue();
 		currentFileContent.setRl(rl);
 		return currentFileContent;
