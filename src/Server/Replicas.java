@@ -32,14 +32,19 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 	private Master master;
 	private HashMap<Long, HashMap<Long, FileContent>> pendingTransactions;
 	private HashMap<Long, String> transactionToFileNameMap;
+	private int port;
+	private String address, rmi_name;
 
 	public Replicas(String location, int i, Master m) throws RemoteException {
 		master = m;
 		Registry registry;
-		System.setProperty("java.rmi.server.hostname", "localhost");
-		registry = LocateRegistry.createRegistry(8080 + i);
+		address = "localhost";
+		rmi_name = "replica" + i;
+		port = 8080 + i;
+		System.setProperty("java.rmi.server.hostname", address);
+		registry = LocateRegistry.createRegistry(port);
 		try {
-			registry.rebind("replica" + i, this);
+			registry.rebind(rmi_name, this);
 		} catch (RemoteException e) {
 			System.out.println("remote exception" + e);
 		}
@@ -245,6 +250,30 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 			fc.setContent(sb.toString());
 			return fc;
 		}
+	}
+
+	public int getPort() {
+		return port;
+	}
+
+	public void setPort(int port) {
+		this.port = port;
+	}
+
+	public String getAddress() {
+		return address;
+	}
+
+	public void setAddress(String address) {
+		this.address = address;
+	}
+
+	public String getRmi_name() {
+		return rmi_name;
+	}
+
+	public void setRmi_name(String rmi_name) {
+		this.rmi_name = rmi_name;
 	}
 
 }

@@ -1,6 +1,5 @@
 package Server;
 
-
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -76,7 +75,9 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 		while ((line = br.readLine()) != null) {
 			replicasAddress.add(line);
 			replicasObjects.put(line, new Replicas(line, j++, this));
+//			System.out.println(line);
 			File folder = new File(line);
+			
 			File[] listOfFiles = folder.listFiles();
 			for (int i = 0; i < listOfFiles.length; i++) {
 				if (listOfFiles[i].isFile()) {
@@ -208,10 +209,11 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 			newFileTransactions.add(data.getXaction_number());
 		}
 		rl = replicaList.get(fileName);
-		rl.setAddress(rl.getPrimaryLocation());
-		rl.setAddress("localhost");
-		rl.setPort(8080);
-		rl.setRmiReg_name(rmiReg_name);
+		Replicas r = replicasObjects.get(rl.getPrimaryLocation());
+		rl.setPrimaryLocation(rl.getPrimaryLocation());
+		rl.setAddress(r.getAddress());
+		rl.setPort(r.getPort());
+		rl.setRmiReg_name(r.getRmi_name());
 		return new WriteMsg(transactionID++, System.currentTimeMillis(), rl);
 	}
 

@@ -16,7 +16,7 @@ public class ClientMani {
 		WriteMsg m = c.write(null, content);
 		content = new FileContent("Ahmad.txt", m.getTransactionId());
 		content.setContent("I am testing :P :P ");
-		c.commit(m, 2);
+		c.commit(m, 1);
 		
 
 	}
