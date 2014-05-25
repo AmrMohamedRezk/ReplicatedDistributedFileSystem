@@ -57,7 +57,7 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 														// to replica location
 	private LinkedList<String> replicasAddress;
 	private long transactionID;
-	public HashMap<String, Boolean>replicasHeartBeats;
+	private HashMap<String, Boolean> replicasHeartBeats;
 
 	public Master() throws Exception {
 		replicaList = new HashMap<String, ReplicaLoc>();
@@ -69,13 +69,12 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 		HashMap<String, LinkedList<String>> tempHashMap = new HashMap<String, LinkedList<String>>();// FROM
 																									// FILE
 																									// TO
-		replicasHeartBeats = new HashMap<String, Boolean>();																							// PATH
+		replicasHeartBeats = new HashMap<String, Boolean>(); // PATH
 		int j = 1;
 		while ((line = br.readLine()) != null) {
 			replicasAddress.add(line);
 			replicasObjects.put(line, new Replicas(line, j++, this));
 			replicasHeartBeats.put(line, false);
-			// System.out.println(line);
 			File folder = new File(line);
 
 			File[] listOfFiles = folder.listFiles();
@@ -105,7 +104,11 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 				String filePath = locations.peek() + "\\" + s;
 				File source = new File(filePath);
 				while (locations.size() != 3) {
-					String current = replicasAddress.poll();
+					String current= "";
+					do{
+					current = replicasAddress.poll();
+					replicasAddress.add(current);
+					}while(locations.contains(current));
 					replicasAddress.add(current);
 					File dest = new File(current + "\\" + s);
 					Files.copy(source.toPath(), dest.toPath());
@@ -135,29 +138,74 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 					while (true) {
 						Thread.sleep(5000);
 						HashSet<String> indices = new HashSet<String>();
-						for(String s : replicasHeartBeats.keySet()){
-							boolean flag = replicasHeartBeats.get(s);
-							if (!flag) {
-								System.err.println("REPLICA "
-										+ s
-										+ " IS DEAD...");
-								System.err
-										.println("REMOVING IT FROM THE SYSTEM...");
-								indices.add(s);
-							}else
-								replicasHeartBeats.put(s, false);
-
+						//USED TO SIMULATE FAILURE...
+						replicasHeartBeats.put("F:\\replica5", false);
+						synchronized (replicasHeartBeats) {
+							for (String s : replicasHeartBeats.keySet()) {
+								boolean flag = replicasHeartBeats.get(s);
+								if (!flag) {
+									System.err.println("REPLICA " + s
+											+ " IS DEAD...");
+									System.err
+											.println("REMOVING IT FROM THE SYSTEM...");
+									indices.add(s);
+								} else
+									replicasHeartBeats.put(s, false);
+							}
 						}
-						//TODO HANDLE HOW TO REMOVE A REPLICA FROM THE SYSTEM...
-						//RETRIEVE IT'S FILE AND REDISTRIBUTE THEM...
+						int replicasSize = replicasAddress.size()
+								- indices.size();
+						if (replicasSize < 3) {
+							System.err
+									.println("***FAILURE NUMBER OF REPLICAS IS LESS THAN 3***");
+							System.err.println("SYSTEM WILL EXIST NOW...");
+							System.exit(0);
+						}
 						for (String s : indices) {
-							replicaList.remove(s);
-							replicasObjects.remove(s);
-							replicasHeartBeats.remove(s);
-						}
-						for (String s : replicasAddress)
-							if (indices.contains(s))
+							synchronized (replicasObjects) {
+								replicasObjects.remove(s);
+							}
+							synchronized (replicasHeartBeats) {
+
+								replicasHeartBeats.remove(s);
+							}
+							synchronized (replicasAddress) {
+
 								replicasAddress.remove(s);
+							}
+							synchronized (replicaList) {
+								for (String fileName : replicaList.keySet()) {
+									ReplicaLoc rl = replicaList.get(fileName);
+									if (rl.getAddresses().contains(s)) {
+
+										rl.getAddresses().remove(s);
+										String root = rl.getAddresses().peek();
+										File src = new File(root + "\\"
+												+ fileName);
+										String destination = "";
+										synchronized (replicasAddress) {
+											do {
+												destination = replicasAddress
+														.poll();
+												replicasAddress
+														.add(destination);
+											} while (rl.getAddresses()
+													.contains(destination));
+										}
+										File dest = new File(destination + "\\"
+												+ fileName);
+										try {
+											Files.copy(src.toPath(),
+													dest.toPath());
+										} catch (IOException e) {
+											// TODO Auto-generated catch block
+											e.printStackTrace();
+										}
+										rl.getAddresses().add(destination);
+									}
+								}
+							}
+						}
 					}
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
@@ -171,11 +219,15 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 	}
 
 	public ReplicaLoc getLocations(String fileName) {
-		return replicaList.get(fileName);
+		synchronized (replicaList) {
+			return replicaList.get(fileName);
+		}
 	}
 
 	public HashMap<String, Replicas> getReplicasObjects() {
-		return replicasObjects;
+		synchronized (replicasObjects) {
+			return replicasObjects;
+		}
 	}
 
 	/**
@@ -185,18 +237,26 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 	@Override
 	public FileContent read(String fileName) throws FileNotFoundException,
 			IOException, RemoteException {
-		if (!replicaList.containsKey(fileName))
-			throw new FileNotFoundException();
-		FileContent currentFileContent = new FileContent(fileName,
-				transactionID++);
-		ReplicaLoc rl = replicaList.get(fileName);
-		Replicas r = replicasObjects.get(rl.getFirstLocation());
+		FileContent currentFileContent = null;
+		ReplicaLoc rl = null;
+		synchronized (replicaList) {
+			if (!replicaList.containsKey(fileName))
+				throw new FileNotFoundException();
+			currentFileContent = new FileContent(fileName, transactionID++);
+			rl = replicaList.get(fileName);
+
+		}
+		Replicas r = null;
+		synchronized (replicasObjects) {
+			r = replicasObjects.get(rl.getFirstLocation());
+		}
 		rl.setAddress(r.getAddress());
 		rl.setPort(r.getPort());
 		rl.setRmiReg_name(r.getRmi_name());
 		rl.advanceQueue();
 		currentFileContent.setRl(rl);
 		return currentFileContent;
+
 	}
 
 	/**
@@ -244,10 +304,12 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 		// TODO Auto-generated method stub
 		String fileName = data.getFileName();
 		ReplicaLoc rl = null;
-		if (!replicaList.containsKey(fileName)) 
-			replicaList.put(fileName, createFile(fileName));
-		
-		rl = replicaList.get(fileName);
+		synchronized (replicaList) {
+			if (!replicaList.containsKey(fileName))
+				replicaList.put(fileName, createFile(fileName));
+
+			rl = replicaList.get(fileName);
+		}
 		Replicas r = replicasObjects.get(rl.getPrimaryLocation());
 		rl.setPrimaryLocation(rl.getPrimaryLocation());
 		rl.setAddress(r.getAddress());
@@ -257,20 +319,29 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 	}
 
 	private ReplicaLoc createFile(String fileName) throws IOException {
-
-		String primary = replicasAddress.peek();
-		replicasAddress.add(replicasAddress.poll());
-		LinkedList<String> replicaLocations = new LinkedList<String>();
-		replicaLocations.add(primary);
-		replicaLocations.add(replicasAddress.peek());
-		replicasAddress.add(replicasAddress.poll());
-		replicaLocations.add(replicasAddress.peek());
-		replicasAddress.add(replicasAddress.poll());
+		LinkedList<String> replicaLocations = null;
+		String primary = "";
+		synchronized (replicasAddress) {
+			primary = replicasAddress.peek();
+			replicasAddress.add(replicasAddress.poll());
+			replicaLocations = new LinkedList<String>();
+			replicaLocations.add(primary);
+			replicaLocations.add(replicasAddress.peek());
+			replicasAddress.add(replicasAddress.poll());
+			replicaLocations.add(replicasAddress.peek());
+			replicasAddress.add(replicasAddress.poll());
+		}
 		for (String s : replicaLocations) {
 			Replicas r = replicasObjects.get(s);
 			r.addLock(fileName);
 		}
 		return new ReplicaLoc(replicaLocations, primary);
+	}
+
+	public HashMap<String, Boolean> getReplicasHeartBeats() {
+		synchronized (replicasHeartBeats) {
+			return replicasHeartBeats;
+		}
 	}
 
 	public static void main(String[] args) throws Exception {
@@ -283,16 +354,5 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 		} catch (RemoteException e) {
 			System.out.println("remote exception" + e);
 		}
-		// FileContent fc = new FileContent("test.txt", 0);
-		// fc.setContent("This is a test message");
-		// WriteMsg wm = m.write(fc);
-		// Replicas r = m.getReplicasObjects().get(wm.getLoc().getAddress());
-		// r.write(fc.getXaction_number(), 0, fc);
-		// FileContent fc2 = new FileContent("test.txt", 0);
-		// fc2.setContent("This is a second test message");
-		// r.write(fc2.getXaction_number(), 1, fc2);
-		// r.commit(0, 2);
-		// m.read("test.txt");
-
 	}
 }

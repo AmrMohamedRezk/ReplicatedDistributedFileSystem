@@ -57,8 +57,11 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 			public void run() {
 				try {
 					while (true) {
-						Thread.sleep(3000);
-						master.replicasHeartBeats.put(root, true);
+						Thread.sleep(2000);
+						if(master.getReplicasHeartBeats().containsKey(root))
+							master.getReplicasHeartBeats().put(root, true);
+						else
+							break;
 					}
 				} catch (InterruptedException e) {
 					// TODO Auto-generated catch block
