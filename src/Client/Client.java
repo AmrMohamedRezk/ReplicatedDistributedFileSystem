@@ -26,6 +26,7 @@ public class Client {
 	int seq_number = 0;
 	String current_filename;
 	Vector<FileContent> messages = new Vector<FileContent>();
+	boolean error_Nmessages = false;
 
 	public Client() throws FileNotFoundException {
 		Scanner scan = new Scanner(new File("MasterServer.txt"));
@@ -88,9 +89,11 @@ public class Client {
 		ReplicaServerClientInterface RrmiServer;
 		Registry Mregistry, Rregistry;
 		WriteMsg response;
+
 		try {
 			// calling the Master server
 			if (current_write == null) {
+				error_Nmessages = false;
 				Mregistry = LocateRegistry.getRegistry("localhost",
 						(new Integer(5555)).intValue());
 				MrmiServer = (MasterServerClientInterface) (Mregistry
@@ -146,9 +149,11 @@ public class Client {
 				messages.clear();
 				return true;
 
-			} else {
-				FileContent c = null;
+			} else if (!error_Nmessages) {
+				FileContent c = RrmiServer.wrongNumberOfMsgs(transactionId,
+						numOfMsgs);
 				if (c.getFileName().equalsIgnoreCase("Missing messages")) {
+					error_Nmessages = true;
 					StringTokenizer token = new StringTokenizer(c.getContent(),
 							",");
 					while (token.hasMoreTokens()) {

@@ -33,6 +33,8 @@ public class Main {
 		 * 
 		 */
 		
+		
+		//test wrong number of committed messages 
 		Client c1 = new Client();
 		Client c2 = new Client();
 		
