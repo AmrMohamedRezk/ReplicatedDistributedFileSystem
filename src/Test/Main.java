@@ -35,6 +35,8 @@ public class Main {
 		
 		
 		//test wrong number of committed messages 
+		//test big number of write and check their order
+		
 		Client c1 = new Client();
 		Client c2 = new Client();
 		
