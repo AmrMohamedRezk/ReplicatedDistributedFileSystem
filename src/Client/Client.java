@@ -6,7 +6,6 @@ import java.io.IOException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
-import java.util.Random;
 import java.util.Scanner;
 
 import Core.FileContent;
@@ -21,11 +20,16 @@ public class Client {
 	String MSaddress;
 	String server_name;
 	static int index = 0;
+	WriteMsg current_write;
+	int seq_number = 0;
+	String current_filename;
+
 	public Client() throws FileNotFoundException {
 		Scanner scan = new Scanner(new File("MasterServer.txt"));
 		MSaddress = scan.nextLine();
 		server_name = scan.nextLine();
 		MSport_number = scan.nextInt();
+
 		scan.close();
 	}
 
@@ -75,38 +79,40 @@ public class Client {
 	 * commits. That is a read request to a file that is being updated by an
 	 * uncommitted transaction must generate an error.
 	 */
-	public WriteMsg write(WriteMsg wm, FileContent data)
-			throws RemoteException, IOException {
+	public WriteMsg write(FileContent data) throws RemoteException, IOException {
 		System.setProperty("java.rmi.server.hostname", "localhost");
 		MasterServerClientInterface MrmiServer;
 		ReplicaServerClientInterface RrmiServer;
 		Registry Mregistry, Rregistry;
-		Random generator = new Random();
 		WriteMsg response;
 		try {
 			// calling the Master server
-			if (wm == null) {
+			if (current_write == null) {
 				Mregistry = LocateRegistry.getRegistry("localhost",
 						(new Integer(5555)).intValue());
 				MrmiServer = (MasterServerClientInterface) (Mregistry
 						.lookup("rmiServer"));
 				// call the remote method
 				response = MrmiServer.write(data);
-			} else
-				response = wm;
+				current_filename = data.getFileName();
+			} else {
+				response = current_write;
+				if (!data.getFileName().equalsIgnoreCase(current_filename))
+					throw new Exception();
+			}
 			long transactionId = response.getTransactionId();
 			long timeStamp = response.getTimeStamp();
 			System.out.println("MASTER SERVER REPLY TO WRITE : " + timeStamp);
 			ReplicaLoc loc = response.getLoc();
-			int seq_no = generator.nextInt();
+
 			// calling the Primary replica
 			Rregistry = LocateRegistry.getRegistry(loc.getAddress(),
 					(new Integer(loc.getPort())).intValue());
 			RrmiServer = (ReplicaServerClientInterface) (Rregistry.lookup(loc
 					.getRmiReg_name()));
 
-			return RrmiServer.write(transactionId, seq_no, data);
-
+			current_write = RrmiServer.write(transactionId, seq_number, data);
+			seq_number = (seq_number + 1) % 1000000;
 		} catch (Exception e) {
 			// TODO: handle exception
 			System.err.println(e.getMessage());
@@ -115,22 +121,28 @@ public class Client {
 
 	}
 
-	public boolean commit(WriteMsg wmessage, long numOfMsgs)
-			throws MessageNotFoundException, RemoteException {
+	public boolean commit(long numOfMsgs) throws MessageNotFoundException,
+			RemoteException {
 		System.setProperty("java.rmi.server.hostname", "127.0.0.1");
 		ReplicaServerClientInterface RrmiServer;
 		Registry Rregistry;
 		try {
 			// calling the Master server
-			long transactionId = wmessage.getTransactionId();
-			ReplicaLoc loc = wmessage.getLoc();
+			long transactionId = current_write.getTransactionId();
+			ReplicaLoc loc = current_write.getLoc();
 			// calling the Primary replica
 			Rregistry = LocateRegistry.getRegistry(loc.getAddress(),
 					(new Integer(loc.getPort())).intValue());
 			RrmiServer = (ReplicaServerClientInterface) (Rregistry.lookup(loc
 					.getRmiReg_name()));
 
-			return RrmiServer.commit(transactionId, numOfMsgs);
+			if (RrmiServer.commit(transactionId, numOfMsgs)) {
+				current_write = null;
+				return true;
+
+			} else {
+				return false;
+			}
 
 		} catch (Exception e) {
 			// TODO: handle exception
@@ -151,22 +163,27 @@ public class Client {
 	 * file is deleted from all replicaServers. STATUS: 3) The primary
 	 * replicaServer acknowledges the client's abort.
 	 */
-	public boolean abort(WriteMsg wmessage) throws RemoteException {
+	public boolean abort() throws RemoteException {
 		// TODO Auto-generated method stub
 		System.setProperty("java.rmi.server.hostname", "127.0.0.1");
 		ReplicaServerClientInterface RrmiServer;
 		Registry Rregistry;
 		try {
 			// calling the Master server
-			long transactionId = wmessage.getTransactionId();
-			ReplicaLoc loc = wmessage.getLoc();
+			long transactionId = current_write.getTransactionId();
+			ReplicaLoc loc = current_write.getLoc();
 			// calling the Primary replica
 			Rregistry = LocateRegistry.getRegistry(loc.getAddress(),
 					(new Integer(loc.getPort())).intValue());
 			RrmiServer = (ReplicaServerClientInterface) (Rregistry.lookup(loc
 					.getRmiReg_name()));
 
-			return RrmiServer.abort(transactionId);
+			if (RrmiServer.abort(transactionId)) {
+				current_write = null;
+				return true;
+
+			} else
+				return false;
 
 		} catch (Exception e) {
 			// TODO: handle exception
@@ -216,7 +233,7 @@ public class Client {
 
 	public static void main(String[] args) throws RemoteException, IOException,
 			MessageNotFoundException {
-//<<<<<<< HEAD
+		// <<<<<<< HEAD
 		Client c1 = new Client();
 		Client c2 = new Client();
 
@@ -229,95 +246,95 @@ public class Client {
 
 		System.out.println("Each client write and read from his file...!");
 		System.out.println("client 1");
-		WriteMsg m = c1.write(null, fc);
-		c1.commit(m, 1);
+		WriteMsg m = c1.write(fc);
+		c1.commit(1);
 		System.out.println("read:  \n");
-		c1.read("c1.txt");
+		c1.read("\\c1.txt");
 
 		System.out.println("client 2");
-		m = c2.write(null, fc1);
-		c2.commit(m, 1);
+		m = c2.write(fc1);
+		c2.commit(1);
 		System.out.println("read:  \n");
-		c2.read("c2.txt");
+		c2.read("\\c2.txt");
 
 		System.out
 				.println(" client 1  write and commit with wrong number of messages and client 2 write and abort ");
 		System.out.println("client 1");
-		m = c1.write(null, fc);
-		c1.commit(m, 2);
+		m = c1.write(fc);
+		c1.commit(2);
 
 		System.out.println("client 2");
-		m = c2.write(null, fc1);
-		c2.abort(m);
+		m = c2.write(fc1);
+		c2.abort();
 		System.out.println("read:  \n");
-		c2.read("c2.txt");
+		c2.read("\\c2.txt");
 
 		System.out
 				.println("client1 try to access file which client2 is writing in ");
 
 		System.out.println("client 2");
-		m = c2.write(null, fc1);
+		m = c2.write(fc1);
 		System.out.println("client 1");
 		System.out.println("read:  \n");
-		c1.read("c2.txt");
+		c1.read("\\c2.txt");
 		System.out.println("client 2 commit and client 1 read");
-		c2.commit(m, 1);
+		c2.commit(1);
 		System.out.println("read:  \n");
-		c1.read("c2.txt");
+		c1.read("\\c2.txt");
 
 		System.out
 				.println("client1 try to access file newly created bt Client 2 and not commited and aborted ");
 
 		FileContent fnew = new FileContent("disappear.txt", 1);
-		m = c2.write(null, fnew);
-		c1.read("disappear.txt");
-		c2.abort(m);
+		m = c2.write(fnew);
+		c1.read("\\disappear.txt");
+		c2.abort();
 
 		System.out
 				.println("client1 try to access file newly created bt Client 2 and not commited  then commited and seen :D  ");
 
 		fnew = new FileContent("trick.txt", 1);
 		fnew.setContent("Yuuuuuuuuuuupy");
-		m = c2.write(null, fnew);
-		c1.read("trick.txt");
-		c2.commit(m, 1);
-		c1.read("trick.txt");
-//=======
-		// Client c = new Client();
-		// FileContent content = new FileContent("Ahmad.txt", 0);
-		// content.setContent("I am testing :P :P ");
-		// WriteMsg m = c.write(null, content);
-		// content = new FileContent("Ahmad.txt", m.getTransactionId());
-		// content.setContent("I am testing :P :P ");
-		// c.write(m, content);
-		// c.commit(m, 2);
-		// //c.read("Ahmad.txt");
-//		for (int i = 0; i < 3; i++) {
-//			Runnable r = new Runnable() {
-//		         public void run() {
-//		        	 try{
-//		        		Client c = new Client();
-//		    			FileContent content = new FileContent("Ahmad.txt", Client.index);
-//		    			Client.index++;
-//		    			content.setContent("not seen 1 :P :P ");
-//		    			WriteMsg m = c.write(null, content);
-//		    			content = new FileContent("Ahmad.txt", m.getTransactionId());
-//		    			content.setContent("not seen 2 :P :P ");
-//		    			c.write(m, content);
-//		    			// c.abort(m);
-//		    			c.commit(m, 2);
-//		    			c.read("amr.txt");
-//		        	 }catch(Exception e )
-//		        	 {
-//		        		 e.printStackTrace();
-//		        	 }
-// 
-//		         }
-//		     };
-//
-//		     new Thread(r).start();
-//				}
-//>>>>>>> 42b95f0b46d1b6c57897001b2cd40493d7f1393a
+		m = c2.write(fnew);
+		c1.read("\\trick.txt");
+		c2.commit(1);
+		c1.read("\\trick.txt");
+
+		Client c = new Client();
+		FileContent content = new FileContent("Ahmad.txt", 0);
+		content.setContent("I am testing :P :P ");
+		c.write(content);
+		content = new FileContent("Ahmad.txt", m.getTransactionId());
+		content.setContent("I am testing :P :P ");
+		c.write(content);
+		c.commit(2);
+		// c.read("Ahmad.txt");
+		for (int i = 0; i < 3; i++) {
+			Runnable r = new Runnable() {
+				public void run() {
+					try {
+						Client c = new Client();
+						FileContent content = new FileContent("Ahmad.txt",
+								Client.index);
+						Client.index++;
+						content.setContent("not seen 1 :P :P ");
+						WriteMsg m = c.write(content);
+						content = new FileContent("Ahmad.txt",
+								m.getTransactionId());
+						content.setContent("not seen 2 :P :P ");
+						c.write(content);
+						// c.abort(m);
+						c.commit(2);
+						c.read("amr.txt");
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+
+				}
+			};
+
+			new Thread(r).start();
+		}
 
 	}
 }
