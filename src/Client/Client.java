@@ -7,6 +7,8 @@ import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
 import java.util.Scanner;
+import java.util.StringTokenizer;
+import java.util.Vector;
 
 import Core.FileContent;
 import Core.MessageNotFoundException;
@@ -23,6 +25,7 @@ public class Client {
 	WriteMsg current_write;
 	int seq_number = 0;
 	String current_filename;
+	Vector<FileContent> messages = new Vector<FileContent>();
 
 	public Client() throws FileNotFoundException {
 		Scanner scan = new Scanner(new File("MasterServer.txt"));
@@ -100,6 +103,7 @@ public class Client {
 				if (!data.getFileName().equalsIgnoreCase(current_filename))
 					throw new Exception();
 			}
+			messages.add(data);
 			long transactionId = response.getTransactionId();
 			long timeStamp = response.getTimeStamp();
 			System.out.println("MASTER SERVER REPLY TO WRITE : " + timeStamp);
@@ -138,9 +142,21 @@ public class Client {
 
 			if (RrmiServer.commit(transactionId, numOfMsgs)) {
 				current_write = null;
+				seq_number = 0;
+				messages.clear();
 				return true;
 
 			} else {
+				FileContent c = null;
+				if (c.getFileName().equalsIgnoreCase("Missing messages")) {
+					StringTokenizer token = new StringTokenizer(c.getContent(),
+							",");
+					while (token.hasMoreTokens()) {
+						int number = Integer.parseInt(token.nextToken());
+						write(messages.get(number));
+					}
+					commit(numOfMsgs);
+				}
 				return false;
 			}
 
@@ -180,6 +196,8 @@ public class Client {
 
 			if (RrmiServer.abort(transactionId)) {
 				current_write = null;
+				seq_number = 0;
+				messages.clear();
 				return true;
 
 			} else
