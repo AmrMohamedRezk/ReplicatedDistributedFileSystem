@@ -88,6 +88,7 @@ public class Main {
 		 * STATUS: will be tested in Bonus part
 		 */
 
+
 		/**
 		 * We will test multiple concurrent clients accessing the same file and
 		 * check if the mutations to the file are done as if the clients'
@@ -188,6 +189,7 @@ public class Main {
 		c1.write(data, false);
 		c1.write(data, false);
 		System.exit(0);
+
 
 	}
 }

@@ -202,6 +202,8 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 											e.printStackTrace();
 										}
 										rl.getAddresses().add(destination);
+										rl.setPrimaryLocation(rl.getFirstLocation());
+										rl.setAddress(rl.getFirstLocation());
 									}
 								}
 							}

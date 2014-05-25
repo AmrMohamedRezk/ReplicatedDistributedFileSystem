@@ -33,6 +33,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 	private String root;
 	private Master master;
 	private HashMap<Long, HashMap<Long, FileContent>> pendingTransactions;
+	private HashMap<Long, Pair> isCommited;
 	private HashMap<Long, String> transactionToFileNameMap;
 	private int port;
 	private String address, rmi_name;
@@ -55,6 +56,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 		lockManager = new HashMap<String, Boolean>();
 		pendingTransactions = new HashMap<Long, HashMap<Long, FileContent>>();
 		transactionToFileNameMap = new HashMap<Long, String>();
+		isCommited = new HashMap<Long, Replicas.Pair>();
 		Runnable r = new Runnable() {
 			public void run() {
 				try {
@@ -73,6 +75,31 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 		};
 
 		new Thread(r).start();
+		
+		
+		Runnable r2 = new Runnable() {
+			public void run() {
+				while(true)
+				{
+					try {
+						Thread.sleep(60000);//Sleep one Minute
+						for(Long key:isCommited.keySet()){
+							if((System.currentTimeMillis()-isCommited.get(key).timeStamp)>30000)// 30 second passed
+							{
+								pendingTransactions.remove(key);
+								isCommited.remove(key);
+							}
+						}
+					} catch (InterruptedException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+				}
+			}
+
+		};
+		new Thread(r2).start();
+		
 	}
 
 	public void addLock(String fileName) {
@@ -124,6 +151,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 		if (!pendingTransactions.containsKey(txnID)) {
 			pendingTransactions.put(txnID, new HashMap<Long, FileContent>());
 			transactionToFileNameMap.put(txnID, data.getFileName());
+			isCommited.put(txnID, new Pair(System.currentTimeMillis(), false));
 		}
 		HashMap<Long, FileContent> transactionLog = pendingTransactions
 				.get(txnID);
@@ -145,6 +173,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 			throw new MessageNotFoundException();
 		HashMap<Long, FileContent> transactionLog = pendingTransactions
 				.get(txnID);
+		isCommited.get(txnID).isCommited = true;
 		if (transactionLog.size() != numOfMsgs)
 			return false;
 		// throw new RemoteException("INVALID NUMBER OF MESSAGES...");
@@ -206,12 +235,11 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 		HashMap<Long, FileContent> transactionLog = pendingTransactions
 				.get(txnID);
 		String missing = "";
-		for(long i=0L;i<numOfMsgs;i++)
-		{
-			if(!transactionLog.containsKey(i))
-				missing+=i+",";
+		for (long i = 0L; i < numOfMsgs; i++) {
+			if (!transactionLog.containsKey(i))
+				missing += i + ",";
 		}
-		missing = missing.substring(0,missing.length()-1);
+		missing = missing.substring(0, missing.length() - 1);
 		c.setContent(missing);
 		return c;
 	}
@@ -234,6 +262,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 		if (!pendingTransactions.containsKey(txnID))
 			throw new RemoteException("INVALID TRANSACTION ID...");
 		pendingTransactions.remove(txnID);
+		isCommited.remove(txnID);
 		return true;
 	}
 
@@ -302,4 +331,13 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 		this.rmi_name = rmi_name;
 	}
 
+	private class Pair {
+		Long timeStamp;
+		boolean isCommited;
+
+		public Pair(Long timeStamp, boolean isCommited) {
+			this.timeStamp = timeStamp;
+			this.isCommited = isCommited;
+		}
+	}
 }
