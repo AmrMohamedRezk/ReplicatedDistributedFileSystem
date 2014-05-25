@@ -29,10 +29,9 @@ public class Main {
 		 */
 		
 		//PHASE TWO TESTING TESTING USING CLIENTS...
-		
-		
-		
-		
+		/**
+		 * 
+		 */
 		
 		Client c1 = new Client();
 		Client c2 = new Client();

@@ -27,6 +27,8 @@ public interface ReplicaServerClientInterface extends Remote {
 	 */
 	public WriteMsg write(long txnID, long msgSeqNum, FileContent data)
 			throws RemoteException, IOException;
+	
+	public FileContent wrongNumberOfMsgs(long txnID, long numOfMsgs);
 
 	/**
 	 * 

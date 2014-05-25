@@ -9,6 +9,8 @@ import java.io.IOException;
 import java.rmi.RemoteException;
 import java.rmi.registry.LocateRegistry;
 import java.rmi.registry.Registry;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 
 import Core.FileContent;
@@ -58,7 +60,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 				try {
 					while (true) {
 						Thread.sleep(2000);
-						if(master.getReplicasHeartBeats().containsKey(root))
+						if (master.getReplicasHeartBeats().containsKey(root))
 							master.getReplicasHeartBeats().put(root, true);
 						else
 							break;
@@ -144,11 +146,17 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 		HashMap<Long, FileContent> transactionLog = pendingTransactions
 				.get(txnID);
 		if (transactionLog.size() != numOfMsgs)
-			throw new RemoteException("INVALID NUMBER OF MESSAGES...");
+			return false;
+		// throw new RemoteException("INVALID NUMBER OF MESSAGES...");
 		ReplicaLoc loc = master.getLocations(transactionToFileNameMap
 				.get(txnID));
 		for (String path : loc.getAddresses()) {
-			for (Long key : transactionLog.keySet()) {
+			ArrayList<Long> sortedTransaction = new ArrayList<Long>(
+					transactionLog.size());
+			for (Long key : transactionLog.keySet())
+				sortedTransaction.add(key);
+			Collections.sort(sortedTransaction);
+			for (Long key : sortedTransaction) {
 				FileContent current = transactionLog.get(key);
 				String fileName = current.getFileName();
 				try {
@@ -171,12 +179,12 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 						return false;
 					} else {
 						lockManager.put(fileName, true);
-//						try {
-//							Thread.sleep(20000);
-//						} catch (InterruptedException e) {
-//							// TODO Auto-generated catch block
-//							e.printStackTrace();
-//						}
+						// try {
+						// Thread.sleep(20000);
+						// } catch (InterruptedException e) {
+						// // TODO Auto-generated catch block
+						// e.printStackTrace();
+						// }
 						FileWriter fw = new FileWriter(new File(path + "\\"
 								+ fileName), true);
 						fw.append(current.getContent() + "\n");
@@ -191,6 +199,21 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 			}
 		}
 		return true;
+	}
+
+	public FileContent wrongNumberOfMsgs(long txnID, long numOfMsgs) {
+		FileContent c = new FileContent("Missing message", txnID);
+		HashMap<Long, FileContent> transactionLog = pendingTransactions
+				.get(txnID);
+		String missing = "";
+		for(long i=0L;i<numOfMsgs;i++)
+		{
+			if(!transactionLog.containsKey(i))
+				missing+=i+",";
+		}
+		missing = missing.substring(0,missing.length()-1);
+		c.setContent(missing);
+		return c;
 	}
 
 	/**
@@ -238,7 +261,8 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 			System.out.println("File Timeout...Try again later");
 			return null;
 		} else {
-			FileReader fr = new FileReader(new File(root+"\\" + fc.getFileName()));
+			FileReader fr = new FileReader(new File(root + "\\"
+					+ fc.getFileName()));
 			BufferedReader br = new BufferedReader(fr);
 			String line;
 			StringBuilder sb = new StringBuilder();
