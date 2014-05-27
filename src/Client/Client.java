@@ -272,13 +272,13 @@ public class Client {
 		WriteMsg m = c1.write(fc);
 		c1.commit(1);
 		System.out.println("read:  \n");
-		c1.read("\\c1.txt");
+		c1.read("c1.txt");
 
 		System.out.println("client 2");
 		m = c2.write(fc1);
 		c2.commit(1);
 		System.out.println("read:  \n");
-		c2.read("\\c2.txt");
+		c2.read("c2.txt");
 
 		System.out
 				.println(" client 1  write and commit with wrong number of messages and client 2 write and abort ");
@@ -290,7 +290,7 @@ public class Client {
 		m = c2.write(fc1);
 		c2.abort();
 		System.out.println("read:  \n");
-		c2.read("\\c2.txt");
+		c2.read("c2.txt");
 
 		System.out
 				.println("client1 try to access file which client2 is writing in ");
@@ -299,18 +299,18 @@ public class Client {
 		m = c2.write(fc1);
 		System.out.println("client 1");
 		System.out.println("read:  \n");
-		c1.read("\\c2.txt");
+		c1.read("c2.txt");
 		System.out.println("client 2 commit and client 1 read");
 		c2.commit(1);
 		System.out.println("read:  \n");
-		c1.read("\\c2.txt");
+		c1.read("c2.txt");
 
 		System.out
 				.println("client1 try to access file newly created bt Client 2 and not commited and aborted ");
 
 		FileContent fnew = new FileContent("disappear.txt", 1);
 		m = c2.write(fnew);
-		c1.read("\\disappear.txt");
+		c1.read("disappear.txt");
 		c2.abort();
 
 		System.out
@@ -319,9 +319,9 @@ public class Client {
 		fnew = new FileContent("trick.txt", 1);
 		fnew.setContent("Yuuuuuuuuuuupy");
 		m = c2.write(fnew);
-		c1.read("\\trick.txt");
+		c1.read("trick.txt");
 		c2.commit(1);
-		c1.read("\\trick.txt");
+		c1.read("trick.txt");
 
 		Client c = new Client();
 		FileContent content = new FileContent("Ahmad.txt", 0);

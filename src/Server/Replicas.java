@@ -12,6 +12,7 @@ import java.rmi.registry.Registry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 
 import Core.FileContent;
 import Core.MessageNotFoundException;
@@ -30,6 +31,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 	 * STATUS: 1)A lock manager is maintained at each replicaServer.
 	 */
 	private HashMap<String, Boolean> lockManager;
+	private HashMap<String, Integer> readersLock;
 	private String root;
 	private Master master;
 	private HashMap<Long, HashMap<Long, FileContent>> pendingTransactions;
@@ -54,6 +56,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 
 		root = location;
 		lockManager = new HashMap<String, Boolean>();
+		readersLock = new HashMap<String, Integer>();
 		pendingTransactions = new HashMap<Long, HashMap<Long, FileContent>>();
 		transactionToFileNameMap = new HashMap<Long, String>();
 		isCommited = new HashMap<Long, Replicas.Pair>();
@@ -75,21 +78,24 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 		};
 
 		new Thread(r).start();
-		
-		
+
 		Runnable r2 = new Runnable() {
 			public void run() {
-				while(true)
-				{
+				while (true) {
 					try {
-						Thread.sleep(60000);//Sleep one Minute
-						for(Long key:isCommited.keySet()){
-							if((System.currentTimeMillis()-isCommited.get(key).timeStamp)>30000)// 30 second passed
+						Thread.sleep(60000);// Sleep one Minute
+						HashSet<Long> set = new HashSet<Long>();
+						for (Long key : isCommited.keySet()) {
+							if ((System.currentTimeMillis() - isCommited
+									.get(key).timeStamp) > 30000)// 30 second
+																	// passed
 							{
 								pendingTransactions.remove(key);
-								isCommited.remove(key);
+								set.add(key);
 							}
 						}
+						for (Long key : set)
+							isCommited.remove(key);
 					} catch (InterruptedException e) {
 						// TODO Auto-generated catch block
 						e.printStackTrace();
@@ -99,11 +105,12 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 
 		};
 		new Thread(r2).start();
-		
+
 	}
 
 	public void addLock(String fileName) {
 		lockManager.put(fileName, false);
+		readersLock.put(fileName, 0);
 	}
 
 	/**
@@ -173,64 +180,75 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 			throw new MessageNotFoundException();
 		HashMap<Long, FileContent> transactionLog = pendingTransactions
 				.get(txnID);
-		isCommited.get(txnID).isCommited = true;
 		if (transactionLog.size() != numOfMsgs)
 			return false;
 		// throw new RemoteException("INVALID NUMBER OF MESSAGES...");
 		ReplicaLoc loc = master.getLocations(transactionToFileNameMap
 				.get(txnID));
+		ArrayList<Long> sortedTransaction = new ArrayList<Long>(
+				transactionLog.size());
+		for (Long key : transactionLog.keySet())
+			sortedTransaction.add(key);
+		Collections.sort(sortedTransaction);
 		for (String path : loc.getAddresses()) {
-			ArrayList<Long> sortedTransaction = new ArrayList<Long>(
-					transactionLog.size());
-			for (Long key : transactionLog.keySet())
-				sortedTransaction.add(key);
-			Collections.sort(sortedTransaction);
-			for (Long key : sortedTransaction) {
-				FileContent current = transactionLog.get(key);
-				String fileName = current.getFileName();
-				try {
-					// Acquiring lock...
-					int counter = 0;
-					boolean lock = lockManager.get(fileName);
-					if (lock)
-						System.out
-								.println("File is currently being used by another user...");
-					while (counter < 10 && lock) {
-						try {
-							Thread.sleep(1000);
-						} catch (InterruptedException e) {
-							e.printStackTrace();
-						}
-						counter++;
+			FileContent current = transactionLog.get(sortedTransaction.get(0));
+			String fileName = current.getFileName();
+			try {
+				// Acquiring lock...
+				int counter = 0;
+				boolean lock = lockManager.get(fileName);
+				int readCounter = readersLock.get(fileName);
+				if (lock)
+					System.out
+							.println("File is currently being used by another user...");
+				if (readCounter > 0)
+					System.out
+							.println("Someone is currently reading the file...");
+				while (counter < 10 && (lock || readCounter != 0)) {
+					try {
+						Thread.sleep(1000);
+					} catch (InterruptedException e) {
+						e.printStackTrace();
 					}
-					if (lock) {
-						System.out.println("File Timeout...Try again later");
-						return false;
-					} else {
-						lockManager.put(fileName, true);
-						// try {
-						// Thread.sleep(20000);
-						// } catch (InterruptedException e) {
-						// // TODO Auto-generated catch block
-						// e.printStackTrace();
-						// }
+					counter++;
+					lock = lockManager.get(fileName);
+					readCounter = readersLock.get(fileName);
+				}
+				if (lock || readCounter > 0) {
+					System.out.println("File Timeout...Try again later");
+					return false;
+				} else {
+
+					lockManager.put(fileName, true);
+					// try {
+					// Thread.sleep(20000);
+					// } catch (InterruptedException e) {
+					// // TODO Auto-generated catch block
+					// e.printStackTrace();
+					// }
+					for (Long key : sortedTransaction) {
+						current = transactionLog.get(key);
 						FileWriter fw = new FileWriter(new File(path + "\\"
 								+ fileName), true);
 						fw.append(current.getContent() + "\n");
 						fw.flush();
 						fw.close();
-						// master.newFileTransactions.remove(fileName);
-						lockManager.put(fileName, false);
 					}
-				} catch (IOException e) {
-					e.printStackTrace();
+					// master.newFileTransactions.remove(fileName);
+					lockManager.put(fileName, false);
+					isCommited.get(txnID).isCommited = true;
+
 				}
+			} catch (IOException e) {
+				e.printStackTrace();
+
 			}
 		}
 		return true;
 	}
 
-	public FileContent wrongNumberOfMsgs(long txnID, long numOfMsgs) {
+	public FileContent wrongNumberOfMsgs(long txnID, long numOfMsgs)
+			throws RemoteException {
 		FileContent c = new FileContent("Missing message", txnID);
 		HashMap<Long, FileContent> transactionLog = pendingTransactions
 				.get(txnID);
@@ -258,21 +276,25 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 	 */
 	@Override
 	public boolean abort(long txnID) throws RemoteException {
-		// TODO Auto-generated method stub
 		if (!pendingTransactions.containsKey(txnID))
 			throw new RemoteException("INVALID TRANSACTION ID...");
 		pendingTransactions.remove(txnID);
 		isCommited.remove(txnID);
+		File f = new File(root + "\\" + transactionToFileNameMap.get(txnID));
+		if (!f.exists()) {
+			master.removeMetaData(transactionToFileNameMap.get(txnID));
+		}
 		return true;
 	}
 
+	// TODO REMOVE LOCKS AND ADD SEMAPHORES INSTEAD...
 	@Override
 	public FileContent read(FileContent fc) throws FileNotFoundException,
 			IOException, RemoteException {
 		File f = new File(root + "\\" + fc.getFileName());
 		if (!f.exists())
 			throw new FileNotFoundException(
-					"File not found ... you must commit first before u can read...");
+					"File not found ... you must commit first before you can read...");
 		int counter = 0;
 		boolean lock = lockManager.get(fc.getFileName());
 		if (lock)
@@ -290,19 +312,18 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 			System.out.println("File Timeout...Try again later");
 			return null;
 		} else {
+			readersLock.put(fc.getFileName(),
+					readersLock.get(fc.getFileName()) + 1);
 			FileReader fr = new FileReader(new File(root + "\\"
 					+ fc.getFileName()));
 			BufferedReader br = new BufferedReader(fr);
 			String line;
 			StringBuilder sb = new StringBuilder();
 			while ((line = br.readLine()) != null)
-				// <<<<<<< HEAD
-				// sb.append(line);
-				// System.out.println("here : *** " + sb.toString());
-				// =======
 				sb.append(line + "\n");
-			// >>>>>>> 42b95f0b46d1b6c57897001b2cd40493d7f1393a
 			fc.setContent(sb.toString());
+			readersLock.put(fc.getFileName(),
+					readersLock.get(fc.getFileName()) - 1);
 			return fc;
 		}
 	}
