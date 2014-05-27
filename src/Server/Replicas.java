@@ -172,10 +172,13 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 				master.getLocations(data.getFileName()));
 	}
 
+	public String getRoot() {
+		return root;
+	}
+
 	@Override
 	public boolean commit(long txnID, long numOfMsgs)
 			throws MessageNotFoundException, RemoteException {
-
 		if (!pendingTransactions.containsKey(txnID))
 			throw new MessageNotFoundException();
 		HashMap<Long, FileContent> transactionLog = pendingTransactions
@@ -183,69 +186,263 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 		if (transactionLog.size() != numOfMsgs)
 			return false;
 		// throw new RemoteException("INVALID NUMBER OF MESSAGES...");
-		ReplicaLoc loc = master.getLocations(transactionToFileNameMap
-				.get(txnID));
-		ArrayList<Long> sortedTransaction = new ArrayList<Long>(
-				transactionLog.size());
-		for (Long key : transactionLog.keySet())
-			sortedTransaction.add(key);
-		Collections.sort(sortedTransaction);
-		for (String path : loc.getAddresses()) {
-			FileContent current = transactionLog.get(sortedTransaction.get(0));
-			String fileName = current.getFileName();
+		String fileName = transactionToFileNameMap.get(txnID);
+		int counter = 0;
+		boolean lock = lockManager.get(fileName);
+		if (lock)
+			System.out
+					.println("File is currently being used by another user...");
+		while (counter < 10 && lock) {
 			try {
-				// Acquiring lock...
-				int counter = 0;
-				boolean lock = lockManager.get(fileName);
-				int readCounter = readersLock.get(fileName);
-				if (lock)
+				Thread.sleep(1000);
+			} catch (InterruptedException e) {
+				e.printStackTrace();
+			}
+			counter++;
+			lock = lockManager.get(fileName);
+		}
+		if (lock) {
+			System.out.println("File Timeout...COULD NOT ACQUIRE WRITE LOCK");
+			return false;
+		} else {
+			// ACQUIRED WRITE LOCK
+			// LOCKING THE FILE ON PRIMARY REPLICA
+			lockManager.put(fileName, true);
+			// MAKING SURE THAT THERE IS NO READ ON THE PRIMARY REPLICA...
+			int readCounter = readersLock.get(fileName);
+			while (readCounter != 0) {
+				try {
+					Thread.sleep(1000);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+				readCounter = readersLock.get(fileName);
+			}
+
+			// ACQUIRED WRITE LOCK AND READ LOCK NOW WE CAN START EDITING ALL
+			// REPLICAS...
+
+			// SORT MSGSEQNUM
+			ArrayList<Long> sortedTransaction = new ArrayList<Long>(
+					transactionLog.size());
+			for (Long key : transactionLog.keySet())
+				sortedTransaction.add(key);
+			Collections.sort(sortedTransaction);
+			HashMap<Long, FileContent> data = pendingTransactions.get(txnID);
+
+			try {
+				File f = new File(root + "\\" + fileName);
+				if (!f.exists())
+					f.createNewFile();
+				FileWriter fw = new FileWriter(f, true);
+				for (Long key : sortedTransaction)
+					fw.append(data.get(key).getContent() + "\n");
+				fw.flush();
+				fw.close();
+
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+
+			ReplicaLoc loc = master.getLocations(fileName);
+			for (String replicaLocation : loc.getAddresses()) {
+				if (replicaLocation.equals(root)) {
+					continue;
+				}
+				Replicas copy = master.getReplicasObjects()
+						.get(replicaLocation);
+				int copyCounter = 0;
+				boolean copyLock = copy.lockManager.get(fileName);
+				if (copyLock)
 					System.out
 							.println("File is currently being used by another user...");
-				if (readCounter > 0)
-					System.out
-							.println("Someone is currently reading the file...");
-				while (counter < 10 && (lock || readCounter != 0)) {
+				while (copyCounter < 10 && copyLock) {
 					try {
 						Thread.sleep(1000);
 					} catch (InterruptedException e) {
 						e.printStackTrace();
 					}
-					counter++;
-					lock = lockManager.get(fileName);
-					readCounter = readersLock.get(fileName);
+					copyCounter++;
+					copyLock = copy.lockManager.get(fileName);
 				}
-				if (lock || readCounter > 0) {
-					System.out.println("File Timeout...Try again later");
+				if (copyLock) {
+					System.out
+							.println("File Timeout...COULD NOT ACQUIRE WRITE LOCK");
 					return false;
 				} else {
-
-					lockManager.put(fileName, true);
-					// try {
-					// Thread.sleep(20000);
-					// } catch (InterruptedException e) {
-					// // TODO Auto-generated catch block
-					// e.printStackTrace();
-					// }
-					for (Long key : sortedTransaction) {
-						current = transactionLog.get(key);
-						FileWriter fw = new FileWriter(new File(path + "\\"
-								+ fileName), true);
-						fw.append(current.getContent() + "\n");
+					// ACQUIRED WRITE LOCK
+					// LOCKING THE FILE ON PRIMARY REPLICA
+					copy.lockManager.put(fileName, true);
+					// MAKING SURE THAT THERE IS NO READ ON THE PRIMARY
+					// REPLICA...
+					int copyReadCounter = readersLock.get(fileName);
+					while (copyReadCounter != 0) {
+						try {
+							Thread.sleep(1000);
+						} catch (InterruptedException e) {
+							// TODO Auto-generated catch block
+							e.printStackTrace();
+						}
+						copyReadCounter = readersLock.get(fileName);
+					}
+					// NOW WE ACQUIRED WRITE LOCK AND READ LOCK WE CAN START
+					// EDITING...
+					try {
+						File f = new File(copy.getRoot() + "\\" + fileName);
+						if (!f.exists())
+							f.createNewFile();
+						FileWriter fw = new FileWriter(f, true);
+						for (Long key : sortedTransaction)
+							fw.append(data.get(key).getContent() + "\n");
 						fw.flush();
 						fw.close();
-					}
-					// master.newFileTransactions.remove(fileName);
-					lockManager.put(fileName, false);
-					isCommited.get(txnID).isCommited = true;
 
+					} catch (IOException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
+					}
+					copy.lockManager.put(fileName, false);
 				}
-			} catch (IOException e) {
-				e.printStackTrace();
 
 			}
+			lockManager.put(fileName, false);
+
 		}
 		return true;
 	}
+
+	// @Override
+	// public boolean commit(long txnID, long numOfMsgs)
+	// throws MessageNotFoundException, RemoteException {
+	//
+	// if (!pendingTransactions.containsKey(txnID))
+	// throw new MessageNotFoundException();
+	// HashMap<Long, FileContent> transactionLog = pendingTransactions
+	// .get(txnID);
+	// if (transactionLog.size() != numOfMsgs)
+	// return false;
+	// // throw new RemoteException("INVALID NUMBER OF MESSAGES...");
+	// ReplicaLoc loc = master.getLocations(transactionToFileNameMap
+	// .get(txnID));
+	// ArrayList<Long> sortedTransaction = new ArrayList<Long>(
+	// transactionLog.size());
+	// for (Long key : transactionLog.keySet())
+	// sortedTransaction.add(key);
+	// Collections.sort(sortedTransaction);
+	// //ACQUIRING PRIMARY LOCK...
+	// String fileName = transactionToFileNameMap.get(txnID);
+	// int counter = 0;
+	// boolean lock = lockManager.get(fileName);
+	// int readCounter = readersLock.get(fileName);
+	// if (lock)
+	// System.out
+	// .println("File is currently being used by another user...");
+	// if (readCounter > 0)
+	// System.out
+	// .println("Someone is currently reading the file...");
+	// while (counter < 10 && (lock || readCounter != 0)) {
+	// try {
+	// Thread.sleep(1000);
+	// } catch (InterruptedException e) {
+	// e.printStackTrace();
+	// }
+	// counter++;
+	// lock = lockManager.get(fileName);
+	// readCounter = readersLock.get(fileName);
+	// }
+	// if (lock || readCounter > 0) {
+	// System.out.println("File Timeout...Try again later");
+	// return false;
+	// } else {
+	// //PRIMARY LOCK ACQUIRED
+	// lockManager.put(fileName, true);
+	// // try {
+	// // Thread.sleep(20000);
+	// // } catch (InterruptedException e) {
+	// // // TODO Auto-generated catch block
+	// // e.printStackTrace();
+	// // }
+	// //WRITING TO PRIMARY REPLICA
+	// for (Long key : sortedTransaction) {
+	// try {
+	// FileContent current = transactionLog.get(key);
+	// FileWriter fw = new FileWriter(new File(root + "\\"
+	// + current.getFileName()), true);
+	// fw.append(current.getContent() + "\n");
+	// fw.flush();
+	// fw.close();
+	// } catch (IOException e) {
+	// // TODO Auto-generated catch block
+	// e.printStackTrace();
+	// }
+	// }
+	// // master.newFileTransactions.remove(fileName);
+	//
+	//
+	// }
+	// for (String path : loc.getAddresses()) {
+	// if(path.equals(root))
+	// continue;
+	// FileContent current = transactionLog.get(sortedTransaction.get(0));
+	// fileName = current.getFileName();
+	// try {
+	// // Acquiring lock...
+	// counter = 0;
+	// lock = lockManager.get(fileName);
+	// readCounter = readersLock.get(fileName);
+	// if (lock)
+	// System.out
+	// .println("File is currently being used by another user...");
+	// if (readCounter > 0)
+	// System.out
+	// .println("Someone is currently reading the file...");
+	// while (counter < 10 && (lock || readCounter != 0)) {
+	// try {
+	// Thread.sleep(1000);
+	// } catch (InterruptedException e) {
+	// e.printStackTrace();
+	// }
+	// counter++;
+	// lock = lockManager.get(fileName);
+	// readCounter = readersLock.get(fileName);
+	// }
+	// if (lock || readCounter > 0) {
+	// System.out.println("File Timeout...Try again later");
+	// return false;
+	// } else {
+	//
+	// lockManager.put(fileName, true);
+	// // try {
+	// // Thread.sleep(20000);
+	// // } catch (InterruptedException e) {
+	// // // TODO Auto-generated catch block
+	// // e.printStackTrace();
+	// // }
+	// for (Long key : sortedTransaction) {
+	// current = transactionLog.get(key);
+	// FileWriter fw = new FileWriter(new File(path + "\\"
+	// + fileName), true);
+	// fw.append(current.getContent() + "\n");
+	// fw.flush();
+	// fw.close();
+	// }
+	// // master.newFileTransactions.remove(fileName);
+	// lockManager.put(fileName, false);
+	// isCommited.get(txnID).isCommited = true;
+	//
+	// }
+	// } catch (IOException e) {
+	// e.printStackTrace();
+	//
+	// }
+	// lockManager.put(fileName, false);
+	// isCommited.get(txnID).isCommited = true;
+	//
+	// }
+	// return true;
+	// }
 
 	public FileContent wrongNumberOfMsgs(long txnID, long numOfMsgs)
 			throws RemoteException {
@@ -287,7 +484,6 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 		return true;
 	}
 
-	// TODO REMOVE LOCKS AND ADD SEMAPHORES INSTEAD...
 	@Override
 	public FileContent read(FileContent fc) throws FileNotFoundException,
 			IOException, RemoteException {
@@ -322,6 +518,12 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 			while ((line = br.readLine()) != null)
 				sb.append(line + "\n");
 			fc.setContent(sb.toString());
+			try {
+				Thread.sleep(5000);
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
 			readersLock.put(fc.getFileName(),
 					readersLock.get(fc.getFileName()) - 1);
 			return fc;

@@ -41,46 +41,49 @@ public class Main {
 		 * transaction is not visible in the file system until the transaction
 		 * commits.
 		 **/
-		System.out.println("**Writing File1.txt and reading it again ");
-		FileContent data = new FileContent("File1.txt", 0);
-		data.setContent("Cause I am Happyyyyyyyyyyyy :)");
-		System.out.println("C1 writing ......");
-		c1.write(data, false);
-		System.out.println("Check the File Visiablity");
-		Scanner scan = new Scanner(System.in);
-		scan.next();
-		scan.close();
-		System.out.println("C1 commiting ......1 happy ;)");
-		c1.commit(1);
-		System.out.println("C1 reading ......");
-		c1.read("File1.txt");
-
-		System.out
-				.println("** C1 Writing to File1.txt and reading it again by C1 and C2 without commiting");
-		System.out.println("C1 writing ...... ");
-		c1.write(data, false);
-		System.out.println("C1 reading ......");
-		c1.read("File1.txt");
-		System.out.println("C2 reading ......");
-		c2.read("File1.txt");
-		System.out.println("C1 commiting ......2 happy ;)");
-		c1.commit(1);
-		System.out.println("C2 reading ......");
-		c2.read("File1.txt");
-		/**
-		 * In case of aborted transactions, we will double check that any
-		 * mutations to a file as part of this transaction is not rolled back
-		 * after the transaction is aborted. We will also check that any file
-		 * that was created as part of the aborted transaction does not exist
-		 * after the transaction aborts.
-		 */
-
-		System.out
-				.println("** C1 Writing to File1.txt and reading it again by C1 and C2 without commiting");
-		System.out.println("C1 writing ...... ");
-		c1.write(data, false);
-		System.out.println("C1 abort ..... no happy :(");
-		c1.abort();
+//		int j=0;
+//		System.out.println("**Writing File1.txt and reading it again ");
+//		FileContent data = new FileContent("File1.txt", 0);
+//		data.setContent("File One testing writing "+j++);
+//		System.out.println("C1 writing ......");
+//		c1.write(data, false);
+//		System.out.println("Check the File Visiablity");
+//		Scanner scan = new Scanner(System.in);
+//		scan.next();
+//		scan.close();
+//		System.out.println("C1 commiting ......1");
+//		c1.commit(1);
+//		System.out.println("C1 reading ......");
+//		c1.read("File1.txt");
+//
+//		System.out
+//				.println("** C1 Writing to File1.txt and reading it again by C1 and C2 without commiting");
+//		System.out.println("C1 writing ...... ");
+//		data.setContent("File One testing writing "+j++);
+//		c1.write(data, false);
+//		System.out.println("C1 reading ......");
+//		c1.read("File1.txt");
+//		System.out.println("C2 reading ......");
+//		c2.read("File1.txt");
+//		System.out.println("C1 commiting ......2");
+//		c1.commit(1);
+//		System.out.println("C2 reading ......");
+//		c2.read("File1.txt");
+//		/**
+//		 * In case of aborted transactions, we will double check that any
+//		 * mutations to a file as part of this transaction is not rolled back
+//		 * after the transaction is aborted. We will also check that any file
+//		 * that was created as part of the aborted transaction does not exist
+//		 * after the transaction aborts.
+//		 */
+//
+//		System.out
+//				.println("** C1 Writing to File1.txt and reading it again by C1 and C2 without commiting");
+//		System.out.println("C1 writing ...... ");
+//		data.setContent("File One testing writing "+j++);
+//		c1.write(data, false);
+//		System.out.println("C1 abort .....");
+//		c1.abort();
 		/**
 		 * Bonus: We will intentionally have the client omit some messages to
 		 * test how the server handles undelivered messages.
@@ -94,22 +97,22 @@ public class Main {
 		 * check if the mutations to the file are done as if the clients'
 		 * transactions were performed sequentially.
 		 */
-		for (int i = 0; i < 3; i++) {
+		for (int i = 0; i < 5; i++) {
 			Runnable r = new Runnable() {
 				public void run() {
 					try {
 						Client c = new Client();
-						FileContent content = new FileContent("Ahmad.txt",
-								Client.index);
-						Client.index++;
-						content.setContent("not seen 1 :P :P ");
-						c.write(content, false);
-						content = new FileContent("Ahmad.txt", 0);
-						content.setContent("not seen 2 :P :P ");
-						c.write(content, false);
+//						FileContent content = new FileContent("File1.txt",
+//								Client.index);
+//						Client.index++;
+//						content.setContent("Concurrent one "+System.nanoTime());
+//						c.write(content, false);
+					//	content = new FileContent("File1.txt", 0);
+						//content.setContent("Concurrent two "+System.currentTimeMillis());
+				//		c.write(content, false);
 						// c.abort(m);
-						c.commit(2);
-						c.read("amr.txt");
+//						c.commit(1);
+						c.read("File1.txt");
 					} catch (Exception e) {
 						e.printStackTrace();
 					}
@@ -118,6 +121,30 @@ public class Main {
 			};
 
 			new Thread(r).start();
+			Runnable r2= new Runnable() {
+				public void run() {
+					try {
+						Client c = new Client();
+						FileContent content = new FileContent("File1.txt",
+								Client.index);
+						Client.index++;
+						content.setContent("Concurrent one "+System.nanoTime());
+						c.write(content, false);
+						content = new FileContent("File1.txt", 0);
+						content.setContent("Concurrent two "+System.currentTimeMillis());
+	//					c.write(content, false);
+			//			 c.abort(m);
+				c.commit(1);
+					//	c.read("File1.txt");
+					} catch (Exception e) {
+						e.printStackTrace();
+					}
+
+				}
+			};
+
+			new Thread(r2).start();
+
 		}
 
 		/**
@@ -151,44 +178,44 @@ public class Main {
 		 * request is sent for each missing message.
 		 */
 
-		System.out
-				.println("C1 writing  new File and commiting with 5 and sent is 3 ");
-		data = new FileContent("WMessages.txt", 0);
-		data.setContent("1");
-		c1.write(data, true);
-		data.setContent("2");
-		c1.write(data, false);
-		data.setContent("3");
-		c1.write(data, true);
-		data.setContent("4");
-		c1.write(data, false);
-		data.setContent("5");
-		c1.write(data, false);
-		c1.commit(5);
-		System.out.println("Reading after Commiting ");
-		c1.read("WMessages.txt");
-
-		/**
-		 * Moreover, the client may lose the server's acknowledgment of the
-		 * committed transaction. In that case, it will retransmit the message
-		 * asking the server to commit the transaction. The server must remember
-		 * that the transaction has been committed and re-send the
-		 * acknowledgment to the client.
-		 * 
-		 * could be showed in code :/
-		 */
-
-		/**
-		 * Client failure. If a client crashes before committing the
-		 * transaction, the transaction must never be committed. It is the
-		 * responsibility of the server to decide how long to keep track of
-		 * unfinished transactions by setting a timeout
-		 * */
-		data = new FileContent("Crash.txt", 0);
-		data.setContent("I am crashing I am crashing .........!!");
-		c1.write(data, false);
-		c1.write(data, false);
-		System.exit(0);
+//		System.out
+//				.println("C1 writing  new File and commiting with 5 and sent is 3 ");
+//		data = new FileContent("WMessages.txt", 0);
+//		data.setContent("1");
+//		c1.write(data, true);
+//		data.setContent("2");
+//		c1.write(data, false);
+//		data.setContent("3");
+//		c1.write(data, true);
+//		data.setContent("4");
+//		c1.write(data, false);
+//		data.setContent("5");
+//		c1.write(data, false);
+//		c1.commit(5);
+//		System.out.println("Reading after Commiting ");
+//		c1.read("WMessages.txt");
+//
+//		/**
+//		 * Moreover, the client may lose the server's acknowledgment of the
+//		 * committed transaction. In that case, it will retransmit the message
+//		 * asking the server to commit the transaction. The server must remember
+//		 * that the transaction has been committed and re-send the
+//		 * acknowledgment to the client.
+//		 * 
+//		 * could be showed in code :/
+//		 */
+//
+//		/**
+//		 * Client failure. If a client crashes before committing the
+//		 * transaction, the transaction must never be committed. It is the
+//		 * responsibility of the server to decide how long to keep track of
+//		 * unfinished transactions by setting a timeout
+//		 * */
+//		data = new FileContent("Crash.txt", 0);
+//		data.setContent("I am crashing I am crashing .........!!");
+//		c1.write(data, false);
+//		c1.write(data, false);
+//		System.exit(0);
 
 
 	}
