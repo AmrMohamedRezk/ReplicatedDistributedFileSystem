@@ -21,7 +21,7 @@ public class Client {
 	int MSport_number;
 	String MSaddress;
 	String server_name;
-	static int index = 0;
+	public static int index = 0;
 	WriteMsg current_write;
 	int seq_number = 0;
 	String current_filename;
@@ -83,13 +83,15 @@ public class Client {
 	 * commits. That is a read request to a file that is being updated by an
 	 * uncommitted transaction must generate an error.
 	 */
-	public WriteMsg write(FileContent data) throws RemoteException, IOException {
+	public void write(FileContent data, boolean dontSend)
+			throws RemoteException, IOException {
 		System.setProperty("java.rmi.server.hostname", "localhost");
 		MasterServerClientInterface MrmiServer;
 		ReplicaServerClientInterface RrmiServer;
 		Registry Mregistry, Rregistry;
 		WriteMsg response;
-
+		if (dontSend)
+			return;
 		try {
 			// calling the Master server
 			if (current_write == null) {
@@ -124,7 +126,7 @@ public class Client {
 			// TODO: handle exception
 			System.err.println(e.getMessage());
 		}
-		return null;
+		return;
 
 	}
 
@@ -158,7 +160,7 @@ public class Client {
 							",");
 					while (token.hasMoreTokens()) {
 						int number = Integer.parseInt(token.nextToken());
-						write(messages.get(number));
+						write(messages.get(number), false);
 					}
 					commit(numOfMsgs);
 				}
@@ -256,108 +258,213 @@ public class Client {
 
 	public static void main(String[] args) throws RemoteException, IOException,
 			MessageNotFoundException {
+//<<<<<<< HEAD
 		// <<<<<<< HEAD
-		Client c1 = new Client();
-		Client c2 = new Client();
-
-		System.out.println("Creating data for testing ........ !");
-		FileContent fc = new FileContent("c1.txt", 1);
-		FileContent fc1 = new FileContent("c2.txt", 1);
-
-		fc.setContent("I am Client one");
-		fc1.setContent("I am Client two");
-
-		System.out.println("Each client write and read from his file...!");
-		System.out.println("client 1");
-		WriteMsg m = c1.write(fc);
-		c1.commit(1);
-		System.out.println("read:  \n");
-		c1.read("c1.txt");
-
-		System.out.println("client 2");
-		m = c2.write(fc1);
-		c2.commit(1);
-		System.out.println("read:  \n");
-		c2.read("c2.txt");
-
-		System.out
-				.println(" client 1  write and commit with wrong number of messages and client 2 write and abort ");
-		System.out.println("client 1");
-		m = c1.write(fc);
-		c1.commit(2);
-
-		System.out.println("client 2");
-		m = c2.write(fc1);
-		c2.abort();
-		System.out.println("read:  \n");
-		c2.read("c2.txt");
-
-		System.out
-				.println("client1 try to access file which client2 is writing in ");
-
-		System.out.println("client 2");
-		m = c2.write(fc1);
-		System.out.println("client 1");
-		System.out.println("read:  \n");
-		c1.read("c2.txt");
-		System.out.println("client 2 commit and client 1 read");
-		c2.commit(1);
-		System.out.println("read:  \n");
-		c1.read("c2.txt");
-
-		System.out
-				.println("client1 try to access file newly created bt Client 2 and not commited and aborted ");
-
-		FileContent fnew = new FileContent("disappear.txt", 1);
-		m = c2.write(fnew);
-		c1.read("disappear.txt");
-		c2.abort();
-
-		System.out
-				.println("client1 try to access file newly created bt Client 2 and not commited  then commited and seen :D  ");
-
-		fnew = new FileContent("trick.txt", 1);
-		fnew.setContent("Yuuuuuuuuuuupy");
-		m = c2.write(fnew);
-		c1.read("trick.txt");
-		c2.commit(1);
-		c1.read("trick.txt");
-
-		Client c = new Client();
-		FileContent content = new FileContent("Ahmad.txt", 0);
-		content.setContent("I am testing :P :P ");
-		c.write(content);
-		content = new FileContent("Ahmad.txt", m.getTransactionId());
-		content.setContent("I am testing :P :P ");
-		c.write(content);
-		c.commit(2);
-		// c.read("Ahmad.txt");
-		for (int i = 0; i < 3; i++) {
-			Runnable r = new Runnable() {
-				public void run() {
-					try {
-						Client c = new Client();
-						FileContent content = new FileContent("Ahmad.txt",
-								Client.index);
-						Client.index++;
-						content.setContent("not seen 1 :P :P ");
-						WriteMsg m = c.write(content);
-						content = new FileContent("Ahmad.txt",
-								m.getTransactionId());
-						content.setContent("not seen 2 :P :P ");
-						c.write(content);
-						// c.abort(m);
-						c.commit(2);
-						c.read("amr.txt");
-					} catch (Exception e) {
-						e.printStackTrace();
-					}
-
-				}
-			};
-
-			new Thread(r).start();
-		}
+//		Client c1 = new Client();
+//		Client c2 = new Client();
+//
+//		System.out.println("Creating data for testing ........ !");
+//		FileContent fc = new FileContent("c1.txt", 1);
+//		FileContent fc1 = new FileContent("c2.txt", 1);
+//
+//		fc.setContent("I am Client one");
+//		fc1.setContent("I am Client two");
+//
+//		System.out.println("Each client write and read from his file...!");
+//		System.out.println("client 1");
+//		WriteMsg m = c1.write(fc);
+//		c1.commit(1);
+//		System.out.println("read:  \n");
+//		c1.read("c1.txt");
+//
+//		System.out.println("client 2");
+//		m = c2.write(fc1);
+//		c2.commit(1);
+//		System.out.println("read:  \n");
+//		c2.read("c2.txt");
+//
+//		System.out
+//				.println(" client 1  write and commit with wrong number of messages and client 2 write and abort ");
+//		System.out.println("client 1");
+//		m = c1.write(fc);
+//		c1.commit(2);
+//
+//		System.out.println("client 2");
+//		m = c2.write(fc1);
+//		c2.abort();
+//		System.out.println("read:  \n");
+//		c2.read("c2.txt");
+//
+//		System.out
+//				.println("client1 try to access file which client2 is writing in ");
+//
+//		System.out.println("client 2");
+//		m = c2.write(fc1);
+//		System.out.println("client 1");
+//		System.out.println("read:  \n");
+//		c1.read("c2.txt");
+//		System.out.println("client 2 commit and client 1 read");
+//		c2.commit(1);
+//		System.out.println("read:  \n");
+//		c1.read("c2.txt");
+//
+//		System.out
+//				.println("client1 try to access file newly created bt Client 2 and not commited and aborted ");
+//
+//		FileContent fnew = new FileContent("disappear.txt", 1);
+//		m = c2.write(fnew);
+//		c1.read("disappear.txt");
+//		c2.abort();
+//
+//		System.out
+//				.println("client1 try to access file newly created bt Client 2 and not commited  then commited and seen :D  ");
+//
+//		fnew = new FileContent("trick.txt", 1);
+//		fnew.setContent("Yuuuuuuuuuuupy");
+//		m = c2.write(fnew);
+//		c1.read("trick.txt");
+//		c2.commit(1);
+//		c1.read("trick.txt");
+//
+//		Client c = new Client();
+//		FileContent content = new FileContent("Ahmad.txt", 0);
+//		content.setContent("I am testing :P :P ");
+//		c.write(content);
+//		content = new FileContent("Ahmad.txt", m.getTransactionId());
+//		content.setContent("I am testing :P :P ");
+//		c.write(content);
+//		c.commit(2);
+//		// c.read("Ahmad.txt");
+//		for (int i = 0; i < 3; i++) {
+//			Runnable r = new Runnable() {
+//				public void run() {
+//					try {
+//						Client c = new Client();
+//						FileContent content = new FileContent("Ahmad.txt",
+//								Client.index);
+//						Client.index++;
+//						content.setContent("not seen 1 :P :P ");
+//						WriteMsg m = c.write(content);
+//						content = new FileContent("Ahmad.txt",
+//								m.getTransactionId());
+//						content.setContent("not seen 2 :P :P ");
+//						c.write(content);
+//						// c.abort(m);
+//						c.commit(2);
+//						c.read("amr.txt");
+//					} catch (Exception e) {
+//						e.printStackTrace();
+//					}
+//
+//				}
+//			};
+//
+//			new Thread(r).start();
+//		}
+//=======
+		// // <<<<<<< HEAD
+		// Client c1 = new Client();
+		// Client c2 = new Client();
+		//
+		// System.out.println("Creating data for testing ........ !");
+		// FileContent fc = new FileContent("c1.txt", 1);
+		// FileContent fc1 = new FileContent("c2.txt", 1);
+		//
+		// fc.setContent("I am Client one");
+		// fc1.setContent("I am Client two");
+		//
+		// System.out.println("Each client write and read from his file...!");
+		// System.out.println("client 1");
+		// WriteMsg m = c1.write(fc);
+		// c1.commit(1);
+		// System.out.println("read:  \n");
+		// c1.read("\\c1.txt");
+		//
+		// System.out.println("client 2");
+		// m = c2.write(fc1);
+		// c2.commit(1);
+		// System.out.println("read:  \n");
+		// c2.read("\\c2.txt");
+		//
+		// System.out
+		// .println(" client 1  write and commit with wrong number of messages and client 2 write and abort ");
+		// System.out.println("client 1");
+		// m = c1.write(fc);
+		// c1.commit(2);
+		//
+		// System.out.println("client 2");
+		// m = c2.write(fc1);
+		// c2.abort();
+		// System.out.println("read:  \n");
+		// c2.read("\\c2.txt");
+		//
+		// System.out
+		// .println("client1 try to access file which client2 is writing in ");
+		//
+		// System.out.println("client 2");
+		// m = c2.write(fc1);
+		// System.out.println("client 1");
+		// System.out.println("read:  \n");
+		// c1.read("\\c2.txt");
+		// System.out.println("client 2 commit and client 1 read");
+		// c2.commit(1);
+		// System.out.println("read:  \n");
+		// c1.read("\\c2.txt");
+		//
+		// System.out
+		// .println("client1 try to access file newly created bt Client 2 and not commited and aborted ");
+		//
+		// FileContent fnew = new FileContent("disappear.txt", 1);
+		// m = c2.write(fnew);
+		// c1.read("\\disappear.txt");
+		// c2.abort();
+		//
+		// System.out
+		// .println("client1 try to access file newly created bt Client 2 and not commited  then commited and seen :D  ");
+		//
+		// fnew = new FileContent("trick.txt", 1);
+		// fnew.setContent("Yuuuuuuuuuuupy");
+		// m = c2.write(fnew);
+		// c1.read("\\trick.txt");
+		// c2.commit(1);
+		// c1.read("\\trick.txt");
+		//
+		// Client c = new Client();
+		// FileContent content = new FileContent("Ahmad.txt", 0);
+		// content.setContent("I am testing :P :P ");
+		// c.write(content);
+		// content = new FileContent("Ahmad.txt", m.getTransactionId());
+		// content.setContent("I am testing :P :P ");
+		// c.write(content);
+		// c.commit(2);
+		// // c.read("Ahmad.txt");
+		// for (int i = 0; i < 3; i++) {
+		// Runnable r = new Runnable() {
+		// public void run() {
+		// try {
+		// Client c = new Client();
+		// FileContent content = new FileContent("Ahmad.txt",
+		// Client.index);
+		// Client.index++;
+		// content.setContent("not seen 1 :P :P ");
+		// WriteMsg m = c.write(content);
+		// content = new FileContent("Ahmad.txt",
+		// m.getTransactionId());
+		// content.setContent("not seen 2 :P :P ");
+		// c.write(content);
+		// // c.abort(m);
+		// c.commit(2);
+		// c.read("amr.txt");
+		// } catch (Exception e) {
+		// e.printStackTrace();
+		// }
+		//
+		// }
+		// };
+		//
+		// new Thread(r).start();
+		// }
+//>>>>>>> 8e398958bbcf6ad83853ddf1314a14cdb75c5868
 
 	}
 }
