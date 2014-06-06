@@ -101,7 +101,7 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 					r.addLock(s);
 				}
 			} else if (locations.size() < 3) {
-				String filePath = locations.peek() + "\\" + s;
+				String filePath = locations.peek() + s;
 				File source = new File(filePath);
 				while (locations.size() != 3) {
 					String current = "";
@@ -109,7 +109,7 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 						current = replicasAddress.poll();
 						replicasAddress.add(current);
 					} while (locations.contains(current));
-					File dest = new File(current + "\\" + s);
+					File dest = new File(current + s);
 					Files.copy(source.toPath(), dest.toPath());
 					locations.add(current);
 				}
@@ -121,7 +121,7 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 			} else if (locations.size() > 3) {
 				while (locations.size() != 3) {
 					String last = locations.removeLast();
-					File f = new File(last + "\\" + s);
+					File f = new File(last + s);
 					f.delete();
 				}
 				replicaList.put(s, new ReplicaLoc(locations, locations.peek()));
@@ -138,7 +138,7 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 						Thread.sleep(5000);
 						HashSet<String> indices = new HashSet<String>();
 						// USED TO SIMULATE FAILURE...
-					//	replicasHeartBeats.put("F:\\replica5", false);
+						// replicasHeartBeats.put("F:\\replica5", false);
 						synchronized (replicasHeartBeats) {
 							for (String s : replicasHeartBeats.keySet()) {
 								boolean flag = replicasHeartBeats.get(s);
@@ -179,8 +179,7 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 
 										rl.getAddresses().remove(s);
 										String root = rl.getAddresses().peek();
-										File src = new File(root + "\\"
-												+ fileName);
+										File src = new File(root + fileName);
 										String destination = "";
 										synchronized (replicasAddress) {
 											do {
@@ -191,7 +190,7 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 											} while (rl.getAddresses()
 													.contains(destination));
 										}
-										File dest = new File(destination + "\\"
+										File dest = new File(destination 
 												+ fileName);
 										try {
 											Files.copy(src.toPath(),
@@ -219,8 +218,8 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 		new Thread(r).start();
 		transactionID = 0L;
 	}
-	public void removeMetaData(String fileName)
-	{
+
+	public void removeMetaData(String fileName) {
 		replicaList.remove(fileName);
 	}
 
@@ -351,8 +350,18 @@ public class Master extends java.rmi.server.UnicastRemoteObject implements
 	}
 
 	public static void main(String[] args) throws Exception {
-		System.setProperty("java.rmi.server.hostname", "localhost");
-		Registry registry = LocateRegistry.createRegistry(5555);
+		String address = "10.42.0.85", directory;
+		int port = 5555;
+
+		if (args.length > 3) {
+			address = args[2];
+			port = Integer.parseInt(args[4]);
+			directory = args[6];
+		}
+
+		System.setProperty("java.rmi.server.hostname", address);
+
+		Registry registry = LocateRegistry.createRegistry(port);
 		Master m = new Master();
 		try {
 

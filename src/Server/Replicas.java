@@ -43,7 +43,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 	public Replicas(String location, int i, Master m) throws RemoteException {
 		master = m;
 		Registry registry;
-		address = "localhost";
+		address = "10.42.0.85";
 		rmi_name = "replica" + i;
 		port = 8080 + i;
 		System.setProperty("java.rmi.server.hostname", address);
@@ -232,7 +232,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 			HashMap<Long, FileContent> data = pendingTransactions.get(txnID);
 
 			try {
-				File f = new File(root + "\\" + fileName);
+				File f = new File(root  + fileName);
 				if (!f.exists())
 					f.createNewFile();
 				FileWriter fw = new FileWriter(f, true);
@@ -290,7 +290,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 					// NOW WE ACQUIRED WRITE LOCK AND READ LOCK WE CAN START
 					// EDITING...
 					try {
-						File f = new File(copy.getRoot() + "\\" + fileName);
+						File f = new File(copy.getRoot() + fileName);
 						if (!f.exists())
 							f.createNewFile();
 						FileWriter fw = new FileWriter(f, true);
@@ -477,7 +477,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 			throw new RemoteException("INVALID TRANSACTION ID...");
 		pendingTransactions.remove(txnID);
 		isCommited.remove(txnID);
-		File f = new File(root + "\\" + transactionToFileNameMap.get(txnID));
+		File f = new File(root  + transactionToFileNameMap.get(txnID));
 		if (!f.exists()) {
 			master.removeMetaData(transactionToFileNameMap.get(txnID));
 		}
@@ -487,7 +487,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 	@Override
 	public FileContent read(FileContent fc) throws FileNotFoundException,
 			IOException, RemoteException {
-		File f = new File(root + "\\" + fc.getFileName());
+		File f = new File(root  + fc.getFileName());
 		if (!f.exists())
 			throw new FileNotFoundException(
 					"File not found ... you must commit first before you can read...");
@@ -510,7 +510,7 @@ public class Replicas extends java.rmi.server.UnicastRemoteObject implements
 		} else {
 			readersLock.put(fc.getFileName(),
 					readersLock.get(fc.getFileName()) + 1);
-			FileReader fr = new FileReader(new File(root + "\\"
+			FileReader fr = new FileReader(new File(root 
 					+ fc.getFileName()));
 			BufferedReader br = new BufferedReader(fr);
 			String line;
